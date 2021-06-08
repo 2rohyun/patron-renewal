@@ -1,0 +1,5 @@
+rootProject.name = 'nodamen'
+include 'patron-admin'
+include 'patron-web'
+include 'patron-batch'
+

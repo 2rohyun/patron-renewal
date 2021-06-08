@@ -1,0 +1,20 @@
+server:
+  port: 8081
+
+spring:
+  datasource:
+    driver-class-name: org.mariadb.jdbc.Driver
+    password: 1234
+    url: jdbc:mariadb://localhost:3306/nodamen?characterEncoding=UTF-8&serverTimezone=UTC
+    username: root
+  web:
+    resources:
+      add-mappings: true
+  jpa:
+    generate-ddl: true
+    hibernate:
+      ddl-auto: none
+    properties:
+      hiberate:
+        format_sql: true
+    database-platform: org.hibernate.dialect.MariaDBDialect
