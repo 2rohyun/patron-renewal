@@ -13,6 +13,8 @@
 
 
 <body>
+
+
 <table>
   <thead>
 
@@ -32,10 +34,32 @@
     <td><span th:text="${list.phone}"></span></td>
   </tr>
 
+  <tr>
+    <td colspan="3">-----------------------------------------</td>
+  </tr>
+  <tr th:object="${memberObject}" >
+    <td><span th:text="*{numbers}"></span></td>
+    <td><span th:text="*{name}"></span></td>
+    <td><span th:text="*{phone}"></span></td>
+  </tr>
+
   </tbody>
 </table>
+
+<div style="display: block" th:fragment="replace">대체됨?</div>
+<div th:replace="member.html :: replace">빈칸</div>
+<div th:insert="member.html :: replace">삽입?</div>
+
+<script th:src="@{/js/getParameter.js}"></script>
+
+<script>
+  window.onload = function () {
+    alert(getParameter('id'))
+  }
+</script>
+
+
+
+
 </body>
-
-
-
 </html>

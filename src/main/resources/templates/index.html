@@ -1,18 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>Title</title>
     <link rel="stylesheet" th:href="@{/css/index.css}">
     <link rel="icon" th:href="@{/img/nodamen_favicon.ico}">
 </head>
+
 <body>
 
-<div id="text" th:text="${hello}"></div>
+<main id="main">
+    <div id="text" th:text="|That things... ${hello}|"></div>
+    <div th:if="${hello == 'hi'}">true</div>
+    <div th:unless="${hello == 'hi'}">false</div>
+    <button type="button" th:onclick="con(), sol([[${hello}]])">function inline test</button>
+    <a th:href="@{http://localhost:8081/member/(id=${hello})}">parameter Test</a>
+</main>
 
-<div th:if="${hello == 'hi'}">true</div>
 
-<div th:unless="${hello == 'er'}">false</div>
+<script th:src="@{https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js}"></script>
+<script th:src="@{/js/index.js}"></script>
+
+<script th:inline="javascript">
+    function con() {
+        let name = [[ ${hello} ]]
+        console.log(name)
+    }
+    function sol(e) {
+        alert(e)
+    }
+</script>
 
 </body>
 </html>

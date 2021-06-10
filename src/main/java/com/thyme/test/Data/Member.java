@@ -3,16 +3,16 @@ package com.thyme.test.Data;
 import lombok.Getter;
 
 @Getter
-public class Members {
+public class Member {
 
     int numbers;
     String name;
     String phone;
 
-    public Members () {
+    public Member () {
     }
 
-    public Members(int num, String na, String ph) {
+    public Member(int num, String na, String ph) {
         this.numbers = num;
         this.name = na;
         this.phone = ph;
