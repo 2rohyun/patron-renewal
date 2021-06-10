@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+  <link rel="stylesheet" th:href="@{/css/index.css}">
+  <link rel="icon" th:href="@{/img/nodamen_favicon.ico}">
+</head>
+
+
+
+<body>
+<table>
+  <thead>
+
+  <tr>
+    <th>번호</th>
+    <th>이름</th>
+    <th>전화번호</th>
+  </tr>
+
+  </thead>
+
+  <tbody>
+
+  <tr th:each="list : ${memberLIST}" >
+    <td><span th:text="${list.numbers}"></span></td>
+    <td><span th:text="${list.name}"></span></td>
+    <td><span th:text="${list.phone}"></span></td>
+  </tr>
+
+  </tbody>
+</table>
+</body>
+
+
+
+</html>
