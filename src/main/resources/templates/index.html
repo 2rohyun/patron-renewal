@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet" th:href="@{/css/index.css}">
+    <link rel="icon" th:href="@{/img/nodamen_favicon.ico}">
+</head>
+<body>
+
+<div id="text" th:text="${hello}"></div>
+
+<div th:if="${hello == 'hi'}">true</div>
+
+<div th:unless="${hello == 'er'}">false</div>
+
+</body>
+</html>
