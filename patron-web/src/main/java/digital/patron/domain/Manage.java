@@ -29,6 +29,7 @@ public class Manage {
     @Column(nullable = false, length = 300)
     private String password;
 
-    //TODO ( 기업회원과 ManyToOne 단방향 매핑 )
+    @ManyToOne(fetch = FetchType.LAZY)
+    private BusinessMember businessMember;
 
 }

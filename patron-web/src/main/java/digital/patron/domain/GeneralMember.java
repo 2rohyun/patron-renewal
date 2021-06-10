@@ -8,7 +8,6 @@ import java.time.LocalDate;
 @Entity
 @Getter
 public class GeneralMember {
-    public enum MemberStatus { NORMAL, INACTIVE }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -21,6 +20,7 @@ public class GeneralMember {
     private String name;
 
     @Column(nullable = false, length = 10)
+    @Enumerated(EnumType.STRING)
     private MemberStatus status;
 
     @Column(nullable = false)

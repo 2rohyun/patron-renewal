@@ -20,7 +20,8 @@ public class BusinessMember {
     private String name;
 
     @Column(nullable = false, length = 10)
-    private GeneralMember.MemberStatus status;
+    @Enumerated(EnumType.STRING)
+    private MemberStatus status;
 
     @Column(nullable = false)
     private LocalDate createTime;
@@ -40,5 +41,9 @@ public class BusinessMember {
     @Column(nullable = false, length = 300)
     private String password;
 
-    //TODO AccountInfo OneToOne 단방향 설정
+    @OneToOne(fetch = FetchType.LAZY)
+    private AccountInfo accountInfo;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    private BusinessLicense businessLicense;
 }
