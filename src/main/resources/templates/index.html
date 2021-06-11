@@ -11,11 +11,24 @@
 <body>
 
 <main id="main">
-    <div id="text" th:text="|That things... ${hello}|"></div>
-    <div th:if="${hello == 'hi'}">true</div>
-    <div th:unless="${hello == 'hi'}">false</div>
-    <button type="button" th:onclick="con(), sol([[${hello}]])">function inline test</button>
-    <a th:href="@{http://localhost:8081/member/(id=${hello})}">parameter Test</a>
+    <div id="text" style="font-weight: bold" th:text="| reteral? ${hello}|"></div>
+    <br><br>
+    <div th:if="${hello == 'hi'}">if => true</div>
+    <br><br>
+    <div th:unless="${hello == 'hi'}">unless => false</div>
+    <br><br>
+    <button type="button" th:onclick="con(), sol([[${hello}]])">function inline test</button> <!-- TODO sol 형식보다는 con 형식으로 작성-->
+    <br><br>
+    <a th:href="@{http://localhost:8080/member/(id=${hello})}">parameter Test</a>
+    <br><br>
+    <div class="replace" th:replace="member.html :: replace">replace</div>
+    <div class="insert" th:insert="member.html :: replace">insert</div>
+    <br><br>
+    <div id="fragment" >test</div>
+    <button id="button" type="button">test</button>
+    <br><br>
+    <div id="primeTest"></div>
+
 </main>
 
 
@@ -24,11 +37,15 @@
 
 <script th:inline="javascript">
     function con() {
-        let name = [[ ${hello} ]]
+        let name = [[${hello}]]
         console.log(name)
     }
     function sol(e) {
         alert(e)
+    }
+
+    window.onload = async function () {
+        console.log([[${hello}]]) //TODO  th:inline="javascript" 추가로 가능
     }
 </script>
 

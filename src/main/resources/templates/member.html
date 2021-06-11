@@ -1,39 +1,30 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
 
-
-
 <head>
   <meta charset="UTF-8">
   <title>Title</title>
-  <link rel="stylesheet" th:href="@{/css/index.css}">
+  <link rel="stylesheet"  type="text/css" th:href="@{/css/index.css}">
   <link rel="icon" th:href="@{/img/nodamen_favicon.ico}">
+  <link rel="stylesheet" th:href="@{https://cdn.datatables.net/1.10.25/css/jquery.dataTables.css}">
 </head>
-
-
 
 <body>
 
-
 <table>
   <thead>
-
   <tr>
     <th>번호</th>
-    <th>이름</th>
+    <th th:text="'이름'+ ${a}" ></th>
     <th>전화번호</th>
   </tr>
-
   </thead>
-
   <tbody>
-
-  <tr th:each="list : ${memberLIST}" >
-    <td><span th:text="${list.numbers}"></span></td>
+  <tr th:each="list, iterState  : ${memberList}" >
+    <td><span th:text="${iterState.count}"></span></td>    <!-- TODO iterState LIST구성 뒤 .count(1부터) or .index(0부터) -->
     <td><span th:text="${list.name}"></span></td>
     <td><span th:text="${list.phone}"></span></td>
   </tr>
-
   <tr>
     <td colspan="3">-----------------------------------------</td>
   </tr>
@@ -42,24 +33,70 @@
     <td><span th:text="*{name}"></span></td>
     <td><span th:text="*{phone}"></span></td>
   </tr>
-
   </tbody>
 </table>
 
-<div style="display: block" th:fragment="replace">대체됨?</div>
-<div th:replace="member.html :: replace">빈칸</div>
-<div th:insert="member.html :: replace">삽입?</div>
+<div th:fragment="replace">fragment</div>
+<div th:fragment="test0">test0</div>
+
+<th:block th:each="list : ${memberList}"> <!-- TODO th:block 사라짐-->
+  <input disabled="disabled" th:value="${list.numbers}">
+  <input disabled="disabled" th:value="${list.name}">
+  <input disabled="disabled" th:value="${list.phone}">
+</th:block>
+
+<hr>
+
+<div th:each="list : ${memberList}"> <!-- TODO div 존재 -->
+  <input disabled="disabled" th:value="${list.numbers}">
+  <input disabled="disabled" th:value="${list.name}">
+  <input disabled="disabled" th:value="${list.phone}">
+</div>
 
 <script th:src="@{/js/getParameter.js}"></script>
+<script  th:inline="javascript">
 
-<script>
-  window.onload = function () {
-    alert(getParameter('id'))
+  function hello(callback) {
+    callback("ryu");
+    console.log("안녕")
   }
+
+  function nameReader(name) {
+    let e = name.length
+    console.log("이름이 "+e+"글자 이시네요! "+name+"씨")
+  }
+
+  function getData(boolean) {
+    return new Promise(function(resolve, reject) {
+      if( boolean === true ) {
+        const data = true;
+        resolve(data);
+      } else if ( boolean === false ) {
+        reject(new Error("boolean is not true"))
+      }
+    });
+  }
+
+  window.onload = async function () {
+    let boolean = true
+
+    // promise 처리
+    await getData(boolean).then(function(resolvedData) {
+      console.log(resolvedData)
+    }).catch(function (err){
+      console.error(err)
+    })
+
+    hello(nameReader)
+
+  }
+
+
+
+
+
+
 </script>
-
-
-
 
 </body>
 </html>

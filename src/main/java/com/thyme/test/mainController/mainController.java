@@ -10,37 +10,29 @@ import java.util.List;
 
 @Controller
 public class mainController {
-
     @GetMapping("/")
     public String index(Model model){
-
         model.addAttribute("hello", "받음?");
+        model.addAttribute("a","");
         return "index";
     }
-
     @GetMapping("/member")
     public String memberView(Model model){
-
         Member member1 = new Member(1,"테스트1","11111111111");
         Member member2 = new Member(2,"테스트2","22222222222");
         Member member3 = new Member(3,"테스트3","33333333333");
-
-        List<Member> memberLIST = new ArrayList<>();
-
-        memberLIST.add(member1);
-        memberLIST.add(member2);
-        memberLIST.add(member3);
-
+        List<Member> memberList = new ArrayList<>();
+        memberList.add(member1);
+        memberList.add(member2);
+        memberList.add(member3);
         Member member4 = new Member(1,"테스트4","213213213");
-
-
-        model.addAttribute("memberLIST", memberLIST);
+        model.addAttribute("memberList", memberList);
         model.addAttribute("memberObject", member4);
-
         return "member";
     }
-
-
-
-
+    @GetMapping("/test")
+    public String testForward(Model a){
+        a.addAttribute("a","is forward?");
+        return "forward:/member";
+    }
 }
