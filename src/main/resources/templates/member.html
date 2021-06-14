@@ -36,7 +36,7 @@
   </tbody>
 </table>
 
-<div th:fragment="replace">fragment</div>
+<div th:fragment="replace" class="te">멤버html입니다.</div>
 <div th:fragment="test0">test0</div>
 
 <th:block th:each="list : ${memberList}"> <!-- TODO th:block 사라짐-->
@@ -54,7 +54,7 @@
 </div>
 
 <script th:src="@{/js/getParameter.js}"></script>
-<script  th:inline="javascript">
+<script th:inline="javascript">
 
   function hello(callback) {
     callback("ryu");

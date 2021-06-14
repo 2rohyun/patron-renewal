@@ -14,6 +14,7 @@ public class mainController {
     public String index(Model model){
         model.addAttribute("hello", "받음?");
         model.addAttribute("a","");
+        model.addAttribute("url","/");
         return "index";
     }
     @GetMapping("/member")
