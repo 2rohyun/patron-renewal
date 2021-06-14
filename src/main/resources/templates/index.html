@@ -11,7 +11,7 @@
 <body>
 
 <main id="main">
-    <div id="text" style="font-weight: bold" th:text="| basic text!! ${hello}|"></div>
+    <div id="text" style="font-weight: bold" th:text="| 기본 텍 스트!! ${hello}|"></div>
     <br><br>
     <div th:if="${hello  == 'hi'}">if => true</div>
     <div th:unless="${hello == 'hi'}">unless => false</div>
