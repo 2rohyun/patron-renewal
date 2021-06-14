@@ -24,8 +24,6 @@ subprojects {
     version = '0.0.1-SNAPSHOT'
 
     repositories {
-        maven { url "https://repo.spring.io/libs-release" }
-        maven { url "https://repo.spring.io/milestone" }
         mavenCentral()
     }
 
@@ -53,17 +51,28 @@ subprojects {
         runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
     }
 
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
+    sourceCompatibility = '11'
+    targetCompatibility = '11'
     compileJava.options.encoding = 'UTF-8'
 
     test {
         useJUnitPlatform()
     }
 }
+project(':patron-common') {
+    bootJar {
+        enabled = false
+    }
+    jar {
+        enabled = true
+    }
 
+    dependencies {
+    }
+}
 project(':patron-admin'){
     dependencies {
+        implementation project(':patron-common')
         implementation 'org.springframework.boot:spring-boot-starter-web'
         implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
         implementation 'org.springframework.boot:spring-boot-starter-validation'
@@ -72,6 +81,7 @@ project(':patron-admin'){
 
 project(':patron-batch'){
     dependencies {
+        implementation project(':patron-common')
         implementation 'org.springframework.boot:spring-boot-starter-batch'
         implementation 'org.springframework.boot:spring-boot-starter-data-jdbc'
         runtimeOnly 'com.h2database:h2'
@@ -82,6 +92,7 @@ project(':patron-batch'){
 
 project(':patron-web'){
     dependencies {
+        implementation project(':patron-common')
         implementation 'org.springframework.boot:spring-boot-starter-web'
         implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
         implementation 'org.springframework.boot:spring-boot-starter-validation'
