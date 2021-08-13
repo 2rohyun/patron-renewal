@@ -84,7 +84,6 @@ project(':patron-batch'){
         implementation project(':patron-common')
         implementation 'org.springframework.boot:spring-boot-starter-batch'
         implementation 'org.springframework.boot:spring-boot-starter-data-jdbc'
-        runtimeOnly 'com.h2database:h2'
         testImplementation 'org.springframework.batch:spring-batch-test'
     }
 
