@@ -10,19 +10,22 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Entity
 @AllArgsConstructor
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
-public class MonthSubscriptionSales {
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class Tax {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private BigDecimal fee;
+    private BigDecimal calculatePrice;
 
-    private BigDecimal profit;
+    private String invoice;
+
+    private LocalDateTime invoiceTime;
 
 }

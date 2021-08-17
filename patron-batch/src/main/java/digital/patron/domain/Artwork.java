@@ -29,7 +29,7 @@ public class Artwork {
 
     private String year;
 
-    private String where;
+    private String keep;
 
     private boolean approve;
 
@@ -47,12 +47,4 @@ public class Artwork {
 
     private LocalDateTime registeredAt;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    private SaleMember saleMember;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    private BusinessMember businessMember;
-
-    public void setBusinessMember(BusinessMember businessMember) { this.businessMember = businessMember; }
-    public void setSaleMember(SaleMember saleMember) { this.saleMember = saleMember; }
 }

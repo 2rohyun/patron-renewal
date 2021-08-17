@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,6 +14,7 @@ import java.util.List;
 @Entity
 @AllArgsConstructor
 @Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class SaleMember {
 
     @Id
@@ -35,27 +37,15 @@ public class SaleMember {
 
     private String gender;
 
+    private BigDecimal distributionRatio;
+
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private MonthSubscription monthSubscription;
+
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private AccountInfo accountInfo;
 
-    @OneToMany(mappedBy = "saleMember")
+    @OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     private List<Artwork> artworks = new ArrayList<>();
 
-    protected SaleMember() {}
-
-    public SaleMember(String email, String password, String name, String status, LocalDate createTime, LocalDate birth, String nationality, String gender) {
-        this.email = email;
-        this.password = password;
-        this.name = name;
-        this.status = status;
-        this.createTime = createTime;
-        this.birth = birth;
-        this.nationality = nationality;
-        this.gender = gender;
-    }
-
-    public void addArtwork(Artwork artwork) {
-        artworks.add(artwork);
-        artwork.setSaleMember(this);
-    }
 }

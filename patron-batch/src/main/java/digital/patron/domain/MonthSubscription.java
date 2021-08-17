@@ -6,6 +6,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -20,9 +22,11 @@ public class MonthSubscription {
 
     private String membership;
 
-    private String membershipPeriod;
+    private LocalDateTime membershipStartedAt;
 
-    private String amount;
+    private LocalDateTime membershipEndedAt;
+
+    private BigDecimal amount;
 
     private String pgAgency;
 
@@ -34,6 +38,7 @@ public class MonthSubscription {
 
     private LocalDateTime cancelTime;
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private MonthSubscriptionSales monthSubscriptionSales;
+
 }
