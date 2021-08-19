@@ -24,6 +24,11 @@ public class StreamingStatistics {
 
     private String ownerName;
 
+    private String ownerEmail;
+
+    @Enumerated(EnumType.STRING)
+    private MemberType memberType;
+
     private int freeNumberOfViews;
 
     private int paidNumberOfViews;
@@ -33,15 +38,16 @@ public class StreamingStatistics {
     @Enumerated(EnumType.STRING)
     private SettlementStatus settlementStatus;
 
-    private LocalDateTime settlementTIme;
+    private LocalDateTime settlementTime;
 
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private Tax tax;
 
+    // todo
     @ManyToOne(fetch = FetchType.LAZY)
     private StreamingTotal streamingTotal;
 
@@ -50,6 +56,10 @@ public class StreamingStatistics {
 
     public enum SettlementStatus {
         WAITING, COMPLETE
+    }
+
+    public enum MemberType {
+        SALE, BUSINESS
     }
 
 }

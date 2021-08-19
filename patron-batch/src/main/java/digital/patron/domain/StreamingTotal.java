@@ -32,13 +32,14 @@ public class StreamingTotal {
 
     private int totalPaidNumberOfViews;
 
-    private BigDecimal totalRevenue;
+    private BigDecimal grossProfit;
 
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;
 
-    @OneToMany(mappedBy = "streamingTotal")
+    //todo
+    @OneToMany(mappedBy = "streamingTotal", cascade = CascadeType.ALL)
     private List<StreamingStatistics> streamingStatisticsList = new ArrayList<>();
 
     public void initTotalFreeNumberOfViews(int totalFreeNumberOfViews){
