@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,8 +22,6 @@ public class StreamingStatistics {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private LocalDateTime aggregationTime;
-
     private String ownerName;
 
     private int freeNumberOfViews;
@@ -36,8 +35,15 @@ public class StreamingStatistics {
 
     private LocalDateTime settlementTIme;
 
+    private LocalDateTime createTime;
+
+    private LocalDateTime updateTime;
+
     @OneToOne(fetch = FetchType.LAZY)
     private Tax tax;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    private StreamingTotal streamingTotal;
 
     @OneToMany(mappedBy = "streamingStatistics")
     private List<StreamingStatisticsDetail> streamingStatisticsDetailList = new ArrayList<>();

@@ -22,9 +22,9 @@ public class MonthSubscription {
 
     private String membership;
 
-    private LocalDateTime membershipStartedAt;
+    private LocalDateTime membershipStartTime;
 
-    private LocalDateTime membershipEndedAt;
+    private LocalDateTime membershipEndTime;
 
     private BigDecimal amount;
 

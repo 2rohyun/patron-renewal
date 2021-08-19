@@ -45,7 +45,7 @@ public class SaleMember {
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private AccountInfo accountInfo;
 
-    @OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
+    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<Artwork> artworks = new ArrayList<>();
 
 }
