@@ -47,7 +47,6 @@ public class StreamingStatistics {
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private Tax tax;
 
-    // todo
     @ManyToOne(fetch = FetchType.LAZY)
     private StreamingTotal streamingTotal;
 

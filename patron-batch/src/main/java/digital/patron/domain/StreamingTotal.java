@@ -38,8 +38,7 @@ public class StreamingTotal {
 
     private LocalDateTime updateTime;
 
-    //todo
-    @OneToMany(mappedBy = "streamingTotal", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "streamingTotal")
     private List<StreamingStatistics> streamingStatisticsList = new ArrayList<>();
 
     public void initTotalFreeNumberOfViews(int totalFreeNumberOfViews){

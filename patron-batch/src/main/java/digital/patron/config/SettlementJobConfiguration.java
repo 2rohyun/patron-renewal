@@ -23,6 +23,7 @@ import org.springframework.context.annotation.Configuration;
 
 import javax.persistence.EntityManagerFactory;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.HashMap;
@@ -51,8 +52,10 @@ public class SettlementJobConfiguration {
                 .start(this.saveMemberStep())
                 .next(this.totalAmountOfMonthSubscriptionStep(null))
                 .next(this.totalNumberOfViewsOfArtworkStep(null))
-                // todo ( 권리자별 실 정산 금액 )
+                // todo ( 권리자(판매 회원)별 실 정산 금액 )
                 .next(this.actualSettlementAmountBySaleMemberStep(null))
+                // todo ( 권리자(기업 회원)별 실 정산 금액 )
+
                 // todo ( 권리자 작품 별 실 정산 금액 )
 //                .next(this.actualSettlementAmountByOwnerArtworksStep())
                 // todo ( 집계 기간 총 순익 )
@@ -178,8 +181,8 @@ public class SettlementJobConfiguration {
         JpaPagingItemReader<SaleMember> reader = new JpaPagingItemReader<>();
         reader.setEntityManagerFactory(entityManagerFactory);
         // todo (warn 해결)
-        reader.setQueryString("select s from SaleMember s join fetch s.artworks");
-
+        reader.setQueryString("select s from SaleMember s");
+        reader.setPageSize(CHUNK);
         reader.afterPropertiesSet();
         return reader;
     }
@@ -223,7 +226,6 @@ public class SettlementJobConfiguration {
     }
 
     private ItemWriter<? super StreamingStatistics> actualSettlementAmountBySaleMemberItemWriter() {
-        // todo
         return streamingStatisticsList -> streamingStatisticsList.forEach(streamingStatisticsRepository::save);
     }
 
