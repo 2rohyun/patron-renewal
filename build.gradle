@@ -2,6 +2,8 @@ buildscript {
     ext {
         dependencyManagementVersion = '1.0.11.RELEASE'
         springBootVersion = '2.5.0'
+        queryDslVersion = '4.4.0'
+        querydslPluginVersion = '1.0.10'
     }
 
     repositories {
@@ -12,6 +14,7 @@ buildscript {
     dependencies {
         classpath("io.spring.gradle:dependency-management-plugin:${dependencyManagementVersion}")
         classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+        classpath "gradle.plugin.com.ewerk.gradle.plugins:querydsl-plugin:${querydslPluginVersion}"
     }
 }
 
@@ -49,7 +52,10 @@ subprojects {
         implementation 'org.slf4j:slf4j-api'
         testImplementation 'org.springframework.boot:spring-boot-starter-test'
         runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
+
+
     }
+
 
     sourceCompatibility = '11'
     targetCompatibility = '11'
@@ -76,7 +82,21 @@ project(':patron-admin'){
         implementation 'org.springframework.boot:spring-boot-starter-web'
         implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
         implementation 'org.springframework.boot:spring-boot-starter-validation'
+        implementation 'org.springframework.boot:spring-boot-starter-security'
+        implementation 'io.jsonwebtoken:jjwt-api:0.11.2'
+        runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.2',
+                // Uncomment the next line if you want to use RSASSA-PSS (PS256, PS384, PS512) algorithms:
+                //'org.bouncycastle:bcprov-jdk15on:1.60',
+                'io.jsonwebtoken:jjwt-jackson:0.11.2' // or 'io.jsonwebtoken:jjwt-gson:0.11.2' for gson
+
+        // for QueryDSL
+        implementation "com.querydsl:querydsl-core:${queryDslVersion}"
+        implementation "com.querydsl:querydsl-jpa:${queryDslVersion}"
+        annotationProcessor "com.querydsl:querydsl-apt:${queryDslVersion}:jpa"
+        annotationProcessor "jakarta.persistence:jakarta.persistence-api"
+        annotationProcessor "jakarta.annotation:jakarta.annotation-api"
     }
+
 }
 
 project(':patron-batch'){
@@ -96,4 +116,8 @@ project(':patron-web'){
         implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
         implementation 'org.springframework.boot:spring-boot-starter-validation'
     }
+}
+// for QueryDSL
+task cleanGeneatedDir(type: Delete) {
+    delete file('src/main/generated')
 }
