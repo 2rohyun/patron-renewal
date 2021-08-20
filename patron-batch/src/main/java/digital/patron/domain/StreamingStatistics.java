@@ -50,7 +50,7 @@ public class StreamingStatistics {
     @ManyToOne(fetch = FetchType.LAZY)
     private StreamingTotal streamingTotal;
 
-    @OneToMany(mappedBy = "streamingStatistics")
+    @OneToMany(mappedBy = "streamingStatistics",cascade = CascadeType.ALL)
     private List<StreamingStatisticsDetail> streamingStatisticsDetailList = new ArrayList<>();
 
     public enum SettlementStatus {

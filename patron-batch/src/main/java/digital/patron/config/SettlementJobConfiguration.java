@@ -2,6 +2,7 @@ package digital.patron.config;
 
 import digital.patron.domain.*;
 import digital.patron.dto.ArtworkDto;
+import digital.patron.dto.MonthSubscriptionDto;
 import digital.patron.repository.*;
 import digital.patron.tasklet.SaveMemberTasklet;
 import digital.patron.utils.SettlementJobListener;
@@ -23,11 +24,9 @@ import org.springframework.context.annotation.Configuration;
 
 import javax.persistence.EntityManagerFactory;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -42,6 +41,7 @@ public class SettlementJobConfiguration {
     private final BusinessMemberRepository businessMemberRepository;
     private final StreamingTotalRepository streamingTotalRepository;
     private final StreamingStatisticsRepository streamingStatisticsRepository;
+    private final StreamingStatisticsDetailRepository streamingStatisticsDetailRepository;
     private final EntityManagerFactory entityManagerFactory;
     private final int CHUNK = 300;
 
@@ -49,17 +49,14 @@ public class SettlementJobConfiguration {
     public Job settlementJob() throws Exception {
         return this.jobBuilderFactory.get("settlementJob")
                 .incrementer(new RunIdIncrementer())
-                .start(this.saveMemberStep())
-                .next(this.totalAmountOfMonthSubscriptionStep(null))
-                .next(this.totalNumberOfViewsOfArtworkStep(null))
-                // todo ( 권리자(판매 회원)별 실 정산 금액 )
-                .next(this.actualSettlementAmountBySaleMemberStep(null))
-                // todo ( 권리자(기업 회원)별 실 정산 금액 )
-
-                // todo ( 권리자 작품 별 실 정산 금액 )
-//                .next(this.actualSettlementAmountByOwnerArtworksStep())
-                // todo ( 집계 기간 총 순익 )
-//                .next(this.grossProfitStep())
+                .start(this.saveMemberStep()) // 샘플 데이터 저장 Step
+                .next(this.totalAmountOfMonthSubscriptionStep(null)) // 월 구독 전체 매출액
+                .next(this.totalNumberOfViewsOfArtworkStep(null)) // 집계 기간 유, 무료 작품 총 플레이 횟수
+                .next(this.actualSettlementAmountBySaleMemberStep(null)) // 권리자(판매 회원)별 실 정산 금액
+                .next(this.actualSettlementAMountByBusinessMemberStep(null)) // 권리자(기업 회원)별 실 정산 금액
+                .next(this.actualSettlementAmountBySaleMemberArtworksStep(null)) // 권리자(판매 회원) 작품 별 실 정산 금액
+                .next(this.actualSettlementAmountByBusinessMemberArtworksStep(null)) // 권리자(기업 회원) 작품 별 실 정산 금액
+                .next(this.grossProfitStep(null)) //집계 기간 총 순익
                 .listener(new SettlementJobListener())
                 .build();
     }
@@ -75,7 +72,7 @@ public class SettlementJobConfiguration {
     @JobScope
     public Step totalAmountOfMonthSubscriptionStep(@Value("#{jobParameters[date]}") String date) throws Exception {
         return this.stepBuilderFactory.get("totalAmountOfMonthSubscriptionStep")
-                .<BigDecimal, StreamingTotal>chunk(CHUNK)
+                .<MonthSubscriptionDto, StreamingTotal>chunk(CHUNK)
                 .reader(totalAmountOfMonthSubscriptionItemReader(date))
                 .processor(totalAmountOfMonthSubscriptionItemProcessor(date))
                 .writer(totalAmountOfMonthSubscriptionItemWriter())
@@ -105,13 +102,58 @@ public class SettlementJobConfiguration {
 
     }
 
-    private ItemReader<? extends BigDecimal> totalAmountOfMonthSubscriptionItemReader(String date) throws Exception {
+    @Bean
+    @JobScope
+    public Step actualSettlementAMountByBusinessMemberStep(@Value("#{jobParameters[date]}") String date) throws Exception {
+        return this.stepBuilderFactory.get("actualSettlementAMountByBusinessMemberStep")
+                .<BusinessMember, StreamingStatistics>chunk(CHUNK)
+                .reader(actualSettlementAmountByBusinessMemberItemReader())
+                .processor(actualSettlementAmountByBusinessMemberItemProcessor(date))
+                .writer(actualSettlementAmountByBusinessMemberItemWriter())
+                .build();
+    }
+
+    @Bean
+    @JobScope
+    public Step actualSettlementAmountBySaleMemberArtworksStep(@Value("#{jobParameters[date]}") String date) throws Exception {
+        return this.stepBuilderFactory.get("actualSettlementAmountBySaleMemberArtworksStep")
+                .<SaleMember, List<StreamingStatisticsDetail>>chunk(CHUNK)
+                .reader(actualSettlementAmountBySaleMemberArtworkItemReader())
+                .processor(actualSettlementAmountBySaleMemberArtworkItemProcessor(date))
+                .writer(actualSettlementAmountBySaleMemberArtworkItemWriter())
+                .build();
+    }
+
+    @Bean
+    @JobScope
+    public Step actualSettlementAmountByBusinessMemberArtworksStep(@Value("#{jobParameters[date]}") String date) throws Exception {
+        return this.stepBuilderFactory.get("actualSettlementAmountByBusinessMemberArtworksStep")
+                .<BusinessMember, List<StreamingStatisticsDetail>>chunk(CHUNK)
+                .reader(actualSettlementAmountByBusinessMemberArtworkItemReader())
+                .processor(actualSettlementAmountByBusinessMemberArtworkItemProcessor(date))
+                .writer(actualSettlementAmountByBusinessMemberArtworkItemWriter())
+                .build();
+    }
+
+    @Bean
+    @JobScope
+    public Step grossProfitStep(@Value("#{jobParameters[date]}") String date) throws Exception{
+        return this.stepBuilderFactory.get("grossProfitStep")
+                .<BigDecimal,StreamingTotal>chunk(CHUNK)
+                .reader(grossProfitItemReader())
+                .processor(grossProfitItemProcessor(date))
+                .writer(grossProfitItemWriter())
+                .build();
+    }
+
+    private ItemReader<? extends MonthSubscriptionDto> totalAmountOfMonthSubscriptionItemReader(String date) throws Exception {
         Map<String, Object> parameters = getStartDateTimeAndEndDateTimeOfYearMonth(date);
 
-        JpaPagingItemReader<BigDecimal> reader = new JpaPagingItemReader<>();
+        JpaPagingItemReader<MonthSubscriptionDto> reader = new JpaPagingItemReader<>();
         reader.setEntityManagerFactory(entityManagerFactory);
-        reader.setQueryString("select sum(m.amount)" +
-                " from MonthSubscription m" +
+        reader.setQueryString(
+                "select new digital.patron.dto.MonthSubscriptionDto(sum(m.amount), sum(s.profit))" +
+                " from MonthSubscription m join m.monthSubscriptionSales s" +
                 " where m.membershipStartTime >= :startDateTime" +
                 " and m.membershipStartTime <= :endDateTime");
         reader.setParameterValues(parameters);
@@ -122,12 +164,25 @@ public class SettlementJobConfiguration {
         return reader;
     }
 
-    private ItemProcessor<? super BigDecimal,? extends StreamingTotal> totalAmountOfMonthSubscriptionItemProcessor(String date) {
+    private ItemProcessor<? super MonthSubscriptionDto,? extends StreamingTotal> totalAmountOfMonthSubscriptionItemProcessor(String date) {
         Map<String, Object> startEndMap = getStartDateTimeAndEndDateTimeOfYearMonth(date);
         LocalDateTime aggregationStart = (LocalDateTime) startEndMap.get("startDateTime");
         LocalDateTime aggregationEnd = (LocalDateTime) startEndMap.get("endDateTime");
 
-        return sum -> new StreamingTotal(null, aggregationStart, aggregationEnd, sum, 0, 0, null,LocalDateTime.now(), LocalDateTime.now(),null);
+        return monthSubscriptionDto -> new StreamingTotal(
+                    null,
+                    aggregationStart,
+                    aggregationEnd,
+                    monthSubscriptionDto.getTotalAmount(),
+                    monthSubscriptionDto.getTotalAmountExceptFee(),
+                    0,
+                    0,
+                    null,
+                    LocalDateTime.now(),
+                    LocalDateTime.now(),
+                    null
+        );
+
     }
 
     private ItemWriter<? super StreamingTotal> totalAmountOfMonthSubscriptionItemWriter() {
@@ -152,8 +207,8 @@ public class SettlementJobConfiguration {
         StreamingTotal streamingTotal = streamingTotalRepository.findByAggregationStartTime(aggregationStart)
                 .orElseThrow(() -> new IllegalArgumentException("No streaming total found for input date"));
         // 유, 무료로 골라서 뺀 다음에 StreamingTotal 객체 변경
-        ArtworkDto freeArtworkDto = new ArtworkDto();
-        ArtworkDto paidArtworkDto = new ArtworkDto();
+        ArtworkDto freeArtworkDto = new ArtworkDto(0,0);
+        ArtworkDto paidArtworkDto = new ArtworkDto(0,0);
         return artwork -> {
             if(artwork.isChargeFree()) {
                 freeArtworkDto.setTotalNumberOfViews(
@@ -180,7 +235,6 @@ public class SettlementJobConfiguration {
     private ItemReader<? extends SaleMember> actualSettlementAmountBySaleMemberItemReader() throws Exception {
         JpaPagingItemReader<SaleMember> reader = new JpaPagingItemReader<>();
         reader.setEntityManagerFactory(entityManagerFactory);
-        // todo (warn 해결)
         reader.setQueryString("select s from SaleMember s");
         reader.setPageSize(CHUNK);
         reader.afterPropertiesSet();
@@ -226,7 +280,160 @@ public class SettlementJobConfiguration {
     }
 
     private ItemWriter<? super StreamingStatistics> actualSettlementAmountBySaleMemberItemWriter() {
+        return streamingStatisticsRepository::saveAll;
+    }
+
+    private ItemReader<? extends BusinessMember> actualSettlementAmountByBusinessMemberItemReader() throws Exception {
+        JpaPagingItemReader<BusinessMember> reader = new JpaPagingItemReader<>();
+        reader.setEntityManagerFactory(entityManagerFactory);
+        reader.setQueryString("select b from BusinessMember b");
+        reader.setPageSize(CHUNK);
+        reader.afterPropertiesSet();
+        return reader;
+    }
+
+    private ItemProcessor<? super BusinessMember,? extends StreamingStatistics> actualSettlementAmountByBusinessMemberItemProcessor(String date) {
+        Map<String, Object> startEndMap = getStartDateTimeAndEndDateTimeOfYearMonth(date);
+        LocalDateTime aggregationStart = (LocalDateTime) startEndMap.get("startDateTime");
+        StreamingTotal streamingTotal = streamingTotalRepository.findByAggregationStartTime(aggregationStart)
+                .orElseThrow(() -> new IllegalArgumentException("No streaming total found for input date"));
+
+        return businessMember -> {
+            int chargeFreeSum = businessMember.getArtworks().stream()
+                    .filter(Artwork::isChargeFree)
+                    .mapToInt(a -> a.getNumberOfViews() - a.getViewsExcludingThisMonth())
+                    .sum();
+            int chargePaidSum = businessMember.getArtworks().stream()
+                    .filter(a -> !a.isChargeFree())
+                    .mapToInt(a2 -> a2.getNumberOfViews() - a2.getViewsExcludingThisMonth())
+                    .sum();
+            if (streamingTotal.getTotalPaidNumberOfViews() == 0) throw new IllegalArgumentException("Total paid artwork's number of views are 0");
+
+            return new StreamingStatistics(
+                    null,
+                    businessMember.getName(),
+                    businessMember.getEmail(),
+                    StreamingStatistics.MemberType.BUSINESS,
+                    chargeFreeSum,
+                    chargePaidSum,
+                    streamingTotal.getTotalSubscriptionAmount()
+                                    .multiply(businessMember.getDistributionRatio()
+                                    .multiply(BigDecimal.valueOf((double) chargePaidSum / (double) streamingTotal.getTotalPaidNumberOfViews()))),
+                    StreamingStatistics.SettlementStatus.WAITING,
+                    null,
+                    LocalDateTime.now(),
+                    LocalDateTime.now(),
+                    new Tax(null,null,null,null),
+                    streamingTotal,
+                    null
+            );
+        };
+    }
+
+    private ItemWriter<? super StreamingStatistics> actualSettlementAmountByBusinessMemberItemWriter() {
         return streamingStatisticsList -> streamingStatisticsList.forEach(streamingStatisticsRepository::save);
+    }
+
+    private ItemReader<? extends SaleMember> actualSettlementAmountBySaleMemberArtworkItemReader() throws Exception {
+        JpaPagingItemReader<SaleMember> reader = new JpaPagingItemReader<>();
+        reader.setEntityManagerFactory(entityManagerFactory);
+        reader.setQueryString("select s from SaleMember s");
+        reader.setPageSize(CHUNK);
+        reader.afterPropertiesSet();
+        return reader;
+    }
+
+    private ItemProcessor<? super SaleMember,? extends List<StreamingStatisticsDetail>> actualSettlementAmountBySaleMemberArtworkItemProcessor(String date) {
+        Map<String, Object> startEndMap = getStartDateTimeAndEndDateTimeOfYearMonth(date);
+        LocalDateTime aggregationStart = (LocalDateTime) startEndMap.get("startDateTime");
+        StreamingTotal streamingTotal = streamingTotalRepository.findByAggregationStartTime(aggregationStart)
+                .orElseThrow(() -> new IllegalArgumentException("No streaming total found for input date!"));
+
+        return saleMember -> {
+            StreamingStatistics streamingStatistics = streamingStatisticsRepository.findByOwnerEmail(saleMember.getEmail())
+                    .orElseThrow(() -> new IllegalArgumentException("No streaming statistics found for owner's email!"));
+
+            return saleMember.getArtworks().stream()
+                    .filter(a -> !a.isChargeFree())
+                    .map(p -> new StreamingStatisticsDetail(
+                            null,
+                            p.getName(),
+                            p.getNumberOfViews() - p.getViewsExcludingThisMonth(),
+                            streamingTotal.getTotalSubscriptionAmount()
+                                    .multiply(saleMember.getDistributionRatio())
+                                    .multiply(BigDecimal.valueOf((double) (p.getNumberOfViews() - p.getViewsExcludingThisMonth()) / (double) streamingTotal.getTotalPaidNumberOfViews())),
+                            streamingStatistics
+                    ))
+                    .collect(Collectors.toList());
+        };
+    }
+
+    private ItemWriter<? super List<StreamingStatisticsDetail>> actualSettlementAmountBySaleMemberArtworkItemWriter() {
+        return streamingStatisticsDetails -> streamingStatisticsDetails.forEach(streamingStatisticsDetailRepository::saveAll);
+    }
+
+    private ItemReader<? extends BusinessMember> actualSettlementAmountByBusinessMemberArtworkItemReader() throws Exception{
+        JpaPagingItemReader<BusinessMember> reader = new JpaPagingItemReader<>();
+        reader.setEntityManagerFactory(entityManagerFactory);
+        reader.setQueryString("select b from BusinessMember b");
+        reader.setPageSize(CHUNK);
+        reader.afterPropertiesSet();
+        return reader;
+    }
+
+    private ItemProcessor<? super BusinessMember,? extends List<StreamingStatisticsDetail>> actualSettlementAmountByBusinessMemberArtworkItemProcessor(String date) {
+        Map<String, Object> startEndMap = getStartDateTimeAndEndDateTimeOfYearMonth(date);
+        LocalDateTime aggregationStart = (LocalDateTime) startEndMap.get("startDateTime");
+        StreamingTotal streamingTotal = streamingTotalRepository.findByAggregationStartTime(aggregationStart)
+                .orElseThrow(() -> new IllegalArgumentException("No streaming total found for input date!"));
+
+        return businessMember -> {
+            StreamingStatistics streamingStatistics = streamingStatisticsRepository.findByOwnerEmail(businessMember.getEmail())
+                    .orElseThrow(() -> new IllegalArgumentException("No streaming statistics found for owner's email!"));
+
+            return businessMember.getArtworks().stream()
+                    .filter(a -> !a.isChargeFree())
+                    .map(p -> new StreamingStatisticsDetail(
+                            null,
+                            p.getName(),
+                            p.getNumberOfViews() - p.getViewsExcludingThisMonth(),
+                            streamingTotal.getTotalSubscriptionAmount()
+                                    .multiply(businessMember.getDistributionRatio())
+                                    .multiply(BigDecimal.valueOf((double) (p.getNumberOfViews() - p.getViewsExcludingThisMonth()) / (double) streamingTotal.getTotalPaidNumberOfViews())),
+                            streamingStatistics
+                    ))
+                    .collect(Collectors.toList());
+        };
+    }
+
+    private ItemWriter<? super List<StreamingStatisticsDetail>> actualSettlementAmountByBusinessMemberArtworkItemWriter() {
+        return streamingStatisticsDetails -> streamingStatisticsDetails.forEach(streamingStatisticsDetailRepository::saveAll);
+    }
+
+    private ItemReader<? extends BigDecimal> grossProfitItemReader() throws Exception{
+        JpaPagingItemReader<BigDecimal> reader = new JpaPagingItemReader<>();
+        reader.setEntityManagerFactory(entityManagerFactory);
+        reader.setQueryString("select sum(s.settlementAmount) from StreamingStatistics s");
+        reader.setPageSize(CHUNK);
+        reader.afterPropertiesSet();
+        return reader;
+    }
+
+    private ItemProcessor<? super BigDecimal,? extends StreamingTotal> grossProfitItemProcessor(String date) {
+        Map<String, Object> startEndMap = getStartDateTimeAndEndDateTimeOfYearMonth(date);
+        LocalDateTime aggregationStart = (LocalDateTime) startEndMap.get("startDateTime");
+        StreamingTotal streamingTotal = streamingTotalRepository.findByAggregationStartTime(aggregationStart)
+                .orElseThrow(() -> new IllegalArgumentException("No streaming total found for input date!"));
+
+        return sum -> {
+            streamingTotal.initGrossProfit(streamingTotal.getTotalSubscriptionAmountExceptFee().subtract(sum));
+            streamingTotal.changeUpdateTime(LocalDateTime.now());
+            return streamingTotal;
+        };
+    }
+
+    private ItemWriter<? super StreamingTotal> grossProfitItemWriter() {
+        return streamingTotals -> streamingTotals.forEach(streamingTotalRepository::save);
     }
 
     private Map<String, Object> getStartDateTimeAndEndDateTimeOfYearMonth(String date) {

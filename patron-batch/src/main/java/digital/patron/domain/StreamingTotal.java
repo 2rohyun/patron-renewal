@@ -28,6 +28,8 @@ public class StreamingTotal {
 
     private BigDecimal totalSubscriptionAmount;
 
+    private BigDecimal totalSubscriptionAmountExceptFee;
+
     private int totalFreeNumberOfViews;
 
     private int totalPaidNumberOfViews;
@@ -47,6 +49,10 @@ public class StreamingTotal {
 
     public void initTotalPaidNumberOfViews(int totalPaidNumberOfViews){
         this.totalPaidNumberOfViews = totalPaidNumberOfViews;
+    }
+
+    public void initGrossProfit(BigDecimal grossProfit) {
+        this.grossProfit = grossProfit;
     }
 
     public void changeUpdateTime(LocalDateTime updateTime) {
