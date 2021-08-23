@@ -1,12 +1,10 @@
 package digital.patron.PatronMembers.domain;
 
 import digital.patron.PatronMembers.domain.MonthlySubscription.MonthlySubscription;
-import digital.patron.common.domain.Status;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
-import org.apache.tomcat.jni.Local;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
@@ -48,16 +46,9 @@ public class GeneralMember {
     private Set<MonthlySubscription> monthlySubscriptions = new HashSet<>();
 
 
-    public void addMonthlySubscription(MonthlySubscription monthlySubscription) {
-        monthlySubscriptions.add(monthlySubscription);
-        monthlySubscription.setGeneralMember(this);
-    }
-
-    protected GeneralMember(){
+    protected GeneralMember() {
 
     }
-
-
 
     public GeneralMember(String email, String name,
                          String status, LocalDateTime create_time,
@@ -74,5 +65,10 @@ public class GeneralMember {
         this.nationality = nationality;
         this.gender = gender;
         this.password = password;
+    }
+
+    public void addMonthlySubscription(MonthlySubscription monthlySubscription) {
+        monthlySubscriptions.add(monthlySubscription);
+        monthlySubscription.setGeneralMember(this);
     }
 }

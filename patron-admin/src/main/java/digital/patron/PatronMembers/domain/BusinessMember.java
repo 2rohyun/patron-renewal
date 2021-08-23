@@ -1,8 +1,8 @@
 package digital.patron.PatronMembers.domain;
 
+import digital.patron.PatronMembers.domain.AccountInformation.AccountInfo;
 import digital.patron.PatronMembers.domain.BusinessInformation.BusinessLicense;
 import digital.patron.PatronMembers.domain.BusinessInformation.BusinessManager;
-import digital.patron.PatronMembers.domain.MonthlySubscription.AccountInformation;
 import digital.patron.PatronMembers.domain.MonthlySubscription.MonthlySubscription;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -11,7 +11,6 @@ import lombok.Setter;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
-import java.time.Month;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -42,7 +41,7 @@ public class BusinessMember {
     private String password;
 
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private AccountInformation accountInformation;
+    private AccountInfo accountInfo;
 
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private BusinessLicense businessLicense;
@@ -53,23 +52,7 @@ public class BusinessMember {
     @OneToMany(mappedBy = "businessMember")
     private Set<BusinessManager> businessManagers = new HashSet<>();
 
-    protected BusinessMember(){}
-
-    public void setAccountInformation(AccountInformation accountInformation) {
-        this.accountInformation = accountInformation;
-    }
-
-    public void setBusinessLicense(BusinessLicense businessLicense) {
-        this.businessLicense = businessLicense;
-    }
-
-    public void addMonthlySubscription(MonthlySubscription monthlySubscription) {
-        monthlySubscriptions.add(monthlySubscription);
-        monthlySubscription.setBusinessMember(this);
-    }
-    public void addBusinessManager(BusinessManager businessManager) {
-        businessManagers.add(businessManager);
-        businessManager.setBusinessMember(this);
+    protected BusinessMember() {
     }
 
     public BusinessMember(String email, String name, String status, LocalDateTime create_time, LocalDateTime birth, String nationality, String gender, String password) {
@@ -81,5 +64,23 @@ public class BusinessMember {
         this.nationality = nationality;
         this.gender = gender;
         this.password = password;
+    }
+
+    public void setAccountInfo(AccountInfo accountInfo) {
+        this.accountInfo = accountInfo;
+    }
+
+    public void setBusinessLicense(BusinessLicense businessLicense) {
+        this.businessLicense = businessLicense;
+    }
+
+    public void addMonthlySubscription(MonthlySubscription monthlySubscription) {
+        monthlySubscriptions.add(monthlySubscription);
+        monthlySubscription.setBusinessMember(this);
+    }
+
+    public void addBusinessManager(BusinessManager businessManager) {
+        businessManagers.add(businessManager);
+        businessManager.setBusinessMember(this);
     }
 }

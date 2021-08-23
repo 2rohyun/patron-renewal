@@ -20,7 +20,7 @@ spring:
   jpa:
     generate-ddl: true
     hibernate:
-      ddl-auto: create
+      ddl-auto: none
     properties:
       hiberate:
         format_sql: true

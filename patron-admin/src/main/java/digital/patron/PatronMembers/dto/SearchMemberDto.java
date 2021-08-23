@@ -2,7 +2,6 @@ package digital.patron.PatronMembers.dto;
 
 import lombok.*;
 
-import javax.persistence.Column;
 import javax.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -25,8 +24,6 @@ public class SearchMemberDto {
     private List<LocalDateTime> create_time;
 
     private List<String> public_wallet;
-
-
 
 
 }

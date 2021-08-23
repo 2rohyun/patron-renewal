@@ -1,4 +1,4 @@
-package digital.patron.PatronMembers.domain.MonthlySubscription;
+package digital.patron.PatronMembers.domain.AccountInformation;
 
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -6,17 +6,15 @@ import lombok.Getter;
 import lombok.Setter;
 
 import javax.persistence.*;
-import java.time.LocalDateTime;
 
 @Entity
 @Getter
 @Setter(AccessLevel.PRIVATE)
 @AllArgsConstructor
-public class AccountInformation {
+public class AccountInfo {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
 
 
     @Column(length = 300)
@@ -28,10 +26,11 @@ public class AccountInformation {
     @Column(length = 500)
     private String bank_book;
 
-    protected AccountInformation(){}
+    protected AccountInfo() {
+    }
 
 
-    public AccountInformation(String public_wallet, String bank, String number, String bank_book) {
+    public AccountInfo(String public_wallet, String bank, String number, String bank_book) {
         this.public_wallet = public_wallet;
         this.bank = bank;
         this.number = number;
