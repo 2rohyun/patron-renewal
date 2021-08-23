@@ -34,6 +34,19 @@ import java.util.stream.Collectors;
 @Configuration
 public class SettlementJobConfiguration {
 
+    //todo [기능 추가]
+    // 1. decider 붙히기
+    // 2. 데이터 처리 건수 listener 에 추가
+
+    //todo [성능 최적화 부분]
+    // 3. N + 1 문제 해결
+    // 4. 바람직한 chunk size 찾기
+    // 5. Async, MultiThread, Parallel, Partition 각각 적용하고 무엇이 제일 빠른지 확인 후 적용
+
+    //todo [etc]
+    // 6. 테스트 코드 작성
+    // 7. 젠킨스 붙히기
+    // 8. 문서화
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
     private final GeneralMemberRepository generalMemberRepository;
@@ -43,7 +56,7 @@ public class SettlementJobConfiguration {
     private final StreamingStatisticsRepository streamingStatisticsRepository;
     private final StreamingStatisticsDetailRepository streamingStatisticsDetailRepository;
     private final EntityManagerFactory entityManagerFactory;
-    private final int CHUNK = 300;
+    private final int CHUNK_SIZE = 100;
 
     @Bean
     public Job settlementJob() throws Exception {
@@ -57,7 +70,7 @@ public class SettlementJobConfiguration {
                 .next(this.actualSettlementAmountBySaleMemberArtworksStep(null)) // 권리자(판매 회원) 작품 별 실 정산 금액
                 .next(this.actualSettlementAmountByBusinessMemberArtworksStep(null)) // 권리자(기업 회원) 작품 별 실 정산 금액
                 .next(this.grossProfitStep(null)) //집계 기간 총 순익
-                .listener(new SettlementJobListener())
+                .listener(new SettlementJobListener(streamingStatisticsRepository))
                 .build();
     }
 
@@ -72,7 +85,7 @@ public class SettlementJobConfiguration {
     @JobScope
     public Step totalAmountOfMonthSubscriptionStep(@Value("#{jobParameters[date]}") String date) throws Exception {
         return this.stepBuilderFactory.get("totalAmountOfMonthSubscriptionStep")
-                .<MonthSubscriptionDto, StreamingTotal>chunk(CHUNK)
+                .<MonthSubscriptionDto, StreamingTotal>chunk(CHUNK_SIZE)
                 .reader(totalAmountOfMonthSubscriptionItemReader(date))
                 .processor(totalAmountOfMonthSubscriptionItemProcessor(date))
                 .writer(totalAmountOfMonthSubscriptionItemWriter())
@@ -83,7 +96,7 @@ public class SettlementJobConfiguration {
     @JobScope
     public Step totalNumberOfViewsOfArtworkStep(@Value("#{jobParameters[date]}") String date) throws Exception {
         return this.stepBuilderFactory.get("totalNumberOfViewsOfArtworkStep")
-                .<Artwork, StreamingTotal>chunk(CHUNK)
+                .<Artwork, StreamingTotal>chunk(CHUNK_SIZE)
                 .reader(totalNumberOfViewsOfArtworkItemReader())
                 .processor(totalNumberOfViewsOfArtworkItemProcessor(date))
                 .writer(totalNumberOfViewsOfArtworkItemWriter())
@@ -94,7 +107,7 @@ public class SettlementJobConfiguration {
     @JobScope
     public Step actualSettlementAmountBySaleMemberStep(@Value("#{jobParameters[date]}") String date) throws Exception {
         return this.stepBuilderFactory.get("actualSettlementAmountBySaleMemberStep")
-                .<SaleMember, StreamingStatistics>chunk(CHUNK)
+                .<SaleMember, StreamingStatistics>chunk(CHUNK_SIZE)
                 .reader(actualSettlementAmountBySaleMemberItemReader())
                 .processor(actualSettlementAmountBySaleMemberItemProcessor(date))
                 .writer(actualSettlementAmountBySaleMemberItemWriter())
@@ -106,7 +119,7 @@ public class SettlementJobConfiguration {
     @JobScope
     public Step actualSettlementAMountByBusinessMemberStep(@Value("#{jobParameters[date]}") String date) throws Exception {
         return this.stepBuilderFactory.get("actualSettlementAMountByBusinessMemberStep")
-                .<BusinessMember, StreamingStatistics>chunk(CHUNK)
+                .<BusinessMember, StreamingStatistics>chunk(CHUNK_SIZE)
                 .reader(actualSettlementAmountByBusinessMemberItemReader())
                 .processor(actualSettlementAmountByBusinessMemberItemProcessor(date))
                 .writer(actualSettlementAmountByBusinessMemberItemWriter())
@@ -117,7 +130,7 @@ public class SettlementJobConfiguration {
     @JobScope
     public Step actualSettlementAmountBySaleMemberArtworksStep(@Value("#{jobParameters[date]}") String date) throws Exception {
         return this.stepBuilderFactory.get("actualSettlementAmountBySaleMemberArtworksStep")
-                .<SaleMember, List<StreamingStatisticsDetail>>chunk(CHUNK)
+                .<SaleMember, List<StreamingStatisticsDetail>>chunk(CHUNK_SIZE)
                 .reader(actualSettlementAmountBySaleMemberArtworkItemReader())
                 .processor(actualSettlementAmountBySaleMemberArtworkItemProcessor(date))
                 .writer(actualSettlementAmountBySaleMemberArtworkItemWriter())
@@ -128,7 +141,7 @@ public class SettlementJobConfiguration {
     @JobScope
     public Step actualSettlementAmountByBusinessMemberArtworksStep(@Value("#{jobParameters[date]}") String date) throws Exception {
         return this.stepBuilderFactory.get("actualSettlementAmountByBusinessMemberArtworksStep")
-                .<BusinessMember, List<StreamingStatisticsDetail>>chunk(CHUNK)
+                .<BusinessMember, List<StreamingStatisticsDetail>>chunk(CHUNK_SIZE)
                 .reader(actualSettlementAmountByBusinessMemberArtworkItemReader())
                 .processor(actualSettlementAmountByBusinessMemberArtworkItemProcessor(date))
                 .writer(actualSettlementAmountByBusinessMemberArtworkItemWriter())
@@ -139,7 +152,7 @@ public class SettlementJobConfiguration {
     @JobScope
     public Step grossProfitStep(@Value("#{jobParameters[date]}") String date) throws Exception{
         return this.stepBuilderFactory.get("grossProfitStep")
-                .<BigDecimal,StreamingTotal>chunk(CHUNK)
+                .<BigDecimal,StreamingTotal>chunk(CHUNK_SIZE)
                 .reader(grossProfitItemReader())
                 .processor(grossProfitItemProcessor(date))
                 .writer(grossProfitItemWriter())
@@ -157,7 +170,7 @@ public class SettlementJobConfiguration {
                 " where m.membershipStartTime >= :startDateTime" +
                 " and m.membershipStartTime <= :endDateTime");
         reader.setParameterValues(parameters);
-        reader.setPageSize(CHUNK);
+        reader.setPageSize(CHUNK_SIZE);
 
         reader.afterPropertiesSet();
 
@@ -193,7 +206,7 @@ public class SettlementJobConfiguration {
         JpaPagingItemReader<Artwork> reader = new JpaPagingItemReader<>();
         reader.setEntityManagerFactory(entityManagerFactory);
         reader.setQueryString("select a from Artwork a");
-        reader.setPageSize(CHUNK);
+        reader.setPageSize(CHUNK_SIZE);
 
         reader.afterPropertiesSet();
 
@@ -236,7 +249,7 @@ public class SettlementJobConfiguration {
         JpaPagingItemReader<SaleMember> reader = new JpaPagingItemReader<>();
         reader.setEntityManagerFactory(entityManagerFactory);
         reader.setQueryString("select s from SaleMember s");
-        reader.setPageSize(CHUNK);
+        reader.setPageSize(CHUNK_SIZE);
         reader.afterPropertiesSet();
         return reader;
     }
@@ -287,7 +300,7 @@ public class SettlementJobConfiguration {
         JpaPagingItemReader<BusinessMember> reader = new JpaPagingItemReader<>();
         reader.setEntityManagerFactory(entityManagerFactory);
         reader.setQueryString("select b from BusinessMember b");
-        reader.setPageSize(CHUNK);
+        reader.setPageSize(CHUNK_SIZE);
         reader.afterPropertiesSet();
         return reader;
     }
@@ -338,7 +351,7 @@ public class SettlementJobConfiguration {
         JpaPagingItemReader<SaleMember> reader = new JpaPagingItemReader<>();
         reader.setEntityManagerFactory(entityManagerFactory);
         reader.setQueryString("select s from SaleMember s");
-        reader.setPageSize(CHUNK);
+        reader.setPageSize(CHUNK_SIZE);
         reader.afterPropertiesSet();
         return reader;
     }
@@ -376,7 +389,7 @@ public class SettlementJobConfiguration {
         JpaPagingItemReader<BusinessMember> reader = new JpaPagingItemReader<>();
         reader.setEntityManagerFactory(entityManagerFactory);
         reader.setQueryString("select b from BusinessMember b");
-        reader.setPageSize(CHUNK);
+        reader.setPageSize(CHUNK_SIZE);
         reader.afterPropertiesSet();
         return reader;
     }
@@ -414,7 +427,7 @@ public class SettlementJobConfiguration {
         JpaPagingItemReader<BigDecimal> reader = new JpaPagingItemReader<>();
         reader.setEntityManagerFactory(entityManagerFactory);
         reader.setQueryString("select sum(s.settlementAmount) from StreamingStatistics s");
-        reader.setPageSize(CHUNK);
+        reader.setPageSize(CHUNK_SIZE);
         reader.afterPropertiesSet();
         return reader;
     }
