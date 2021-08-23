@@ -1,6 +1,6 @@
 package digital.patron.PatronMembers.domain;
 
-import digital.patron.PatronMembers.domain.MonthlySubscription.AccountInformation;
+import digital.patron.PatronMembers.domain.AccountInformation.AccountInfo;
 import digital.patron.PatronMembers.domain.MonthlySubscription.MonthlySubscription;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -39,25 +39,14 @@ public class SaleMember {
     @Column(length = 300)
     private String password;
 
-    protected SaleMember(){}
-
-
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private AccountInformation accountInformation;
-
+    private AccountInfo accountInfo;
     @OneToMany(mappedBy = "saleMember")
     private Set<MonthlySubscription> monthlySubscriptions = new HashSet<>();
 
-    public void setAccountInformation(AccountInformation accountInformation) {
-        this.accountInformation = accountInformation;
+    protected SaleMember() {
     }
 
-
-    public void addMonthlySubscription(MonthlySubscription monthlySubscription) {
-        monthlySubscriptions.add(monthlySubscription);
-        monthlySubscription.setSaleMember(this);
-    }
-    
     public SaleMember(String email, String name,
                       String status, LocalDateTime create_time,
                       LocalDateTime birth, String nationality,
@@ -70,6 +59,15 @@ public class SaleMember {
         this.nationality = nationality;
         this.gender = gender;
         this.password = password;
+    }
+
+    public void setAccountInfo(AccountInfo accountInfo) {
+        this.accountInfo = accountInfo;
+    }
+
+    public void addMonthlySubscription(MonthlySubscription monthlySubscription) {
+        monthlySubscriptions.add(monthlySubscription);
+        monthlySubscription.setSaleMember(this);
     }
 
 }

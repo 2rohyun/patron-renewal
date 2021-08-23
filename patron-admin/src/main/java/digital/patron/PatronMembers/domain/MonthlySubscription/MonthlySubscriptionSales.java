@@ -21,7 +21,8 @@ public class MonthlySubscriptionSales {
     @Column(length = 20)
     private String profit;
 
-    protected MonthlySubscriptionSales(){}
+    protected MonthlySubscriptionSales() {
+    }
 
     public MonthlySubscriptionSales(String fee, String profit) {
         this.fee = fee;

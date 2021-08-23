@@ -23,7 +23,8 @@ public class BusinessLicense {
     @Column(length = 20)
     private String create_time;
 
-    protected BusinessLicense(){}
+    protected BusinessLicense() {
+    }
 
     public BusinessLicense(String email, String tel, String create_time) {
         this.email = email;

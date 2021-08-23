@@ -27,7 +27,8 @@ public class LeftMember {
     @Column(length = 300)
     private String password;
 
-    protected LeftMember(){}
+    protected LeftMember() {
+    }
 
     public LeftMember(String email, String reason, String type, LocalDateTime leave_date, String password) {
         this.email = email;

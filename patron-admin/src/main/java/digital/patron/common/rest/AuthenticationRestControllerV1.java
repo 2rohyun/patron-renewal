@@ -11,7 +11,10 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -34,7 +37,7 @@ public class AuthenticationRestControllerV1 {
 
     @PostMapping("/login")
     public ResponseEntity<?> authenticate(@RequestBody AuthenticationRequestDTO request) {
-         try {
+        try {
             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
             Admin admin = adminRepository.findByEmail(request.getEmail()).orElseThrow(() -> new UsernameNotFoundException("Admin doesn't exist"));
             String token = jwtTokenProvider.createToken(request.getEmail(), admin.getRole().name());

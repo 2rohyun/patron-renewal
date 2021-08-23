@@ -3,11 +3,13 @@ package digital.patron.PatronMembers.repository.MontlySubscritpion;
 import digital.patron.PatronMembers.domain.MonthlySubscription.MonthlySubscription;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
 
 import java.util.List;
-import java.util.Optional;
 
-public interface MonthlySubscriptionRepository extends JpaRepository<MonthlySubscription,Long> {
+
+@Repository
+public interface MonthlySubscriptionRepository extends JpaRepository<MonthlySubscription, Long> {
     @Query("select m from MonthlySubscription m where m.generalMember.id = :general_id")
     List<MonthlySubscription> findAllMonthlySubscriptionByGeneralMemberId(Long general_id);
 

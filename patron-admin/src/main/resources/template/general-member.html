@@ -5,11 +5,11 @@
     <title>Title</title>
 </head>
 <body>
-    <input th:value="${generalMember}">
-    <div th:each="member : ${generalMember}">
+<input th:value="${generalMember}">
+<div th:each="member : ${generalMember}">
         <span th:text="${member.getEmail()}">
 
         </span>
-    </div>
+</div>
 </body>
 </html>
