@@ -90,8 +90,6 @@ public class SettlementJobConfiguration {
                 .reader(totalAmountOfMonthSubscriptionItemReader(date))
                 .processor(totalAmountOfMonthSubscriptionItemProcessor(date))
                 .writer(totalAmountOfMonthSubscriptionItemWriter())
-                .taskExecutor(this.taskExecutor)
-                .throttleLimit(10)
                 .build();
     }
 
@@ -103,8 +101,6 @@ public class SettlementJobConfiguration {
                 .reader(totalNumberOfViewsOfArtworkItemReader())
                 .processor(totalNumberOfViewsOfArtworkItemProcessor(date))
                 .writer(totalNumberOfViewsOfArtworkItemWriter())
-                .taskExecutor(this.taskExecutor)
-                .throttleLimit(10)
                 .build();
     }
 
@@ -169,8 +165,6 @@ public class SettlementJobConfiguration {
                 .reader(grossProfitItemReader())
                 .processor(grossProfitItemProcessor(date))
                 .writer(grossProfitItemWriter())
-                .taskExecutor(this.taskExecutor)
-                .throttleLimit(10)
                 .build();
     }
 
