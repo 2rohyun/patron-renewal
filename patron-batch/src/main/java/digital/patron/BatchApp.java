@@ -13,6 +13,18 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 @EnableBatchProcessing
 public class BatchApp {
     public static void main(String[] args) {
-        SpringApplication.run(BatchApp.class, args);
+        // async 로 실행했을 때 종료가 안되는 상황의 발생을 방지하기 위해 명시적으로 안전하게 종료한다.
+        System.exit(SpringApplication.exit(SpringApplication.run(BatchApp.class, args)));
+    }
+
+    @Bean
+    @Primary
+    TaskExecutor taskExecutor() {
+        ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
+        taskExecutor.setCorePoolSize(10);
+        taskExecutor.setMaxPoolSize(10);
+        taskExecutor.setThreadNamePrefix("batch-thread-");
+        taskExecutor.initialize();
+        return taskExecutor;
     }
 }

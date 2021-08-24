@@ -56,6 +56,8 @@ public class SettlementJobConfiguration {
     private final EntityManagerFactory entityManagerFactory;
     private final int CHUNK_SIZE = 100;
 
+    private final TaskExecutor taskExecutor;
+
     @Bean
     public Job settlementJob() throws Exception {
         return this.jobBuilderFactory.get("settlementJob")
@@ -110,6 +112,8 @@ public class SettlementJobConfiguration {
                 .reader(actualSettlementAmountBySaleMemberItemReader())
                 .processor(actualSettlementAmountBySaleMemberItemProcessor(date))
                 .writer(actualSettlementAmountBySaleMemberItemWriter())
+                .taskExecutor(this.taskExecutor)
+                .throttleLimit(10)
                 .build();
 
     }
@@ -122,6 +126,8 @@ public class SettlementJobConfiguration {
                 .reader(actualSettlementAmountByBusinessMemberItemReader())
                 .processor(actualSettlementAmountByBusinessMemberItemProcessor(date))
                 .writer(actualSettlementAmountByBusinessMemberItemWriter())
+                .taskExecutor(this.taskExecutor)
+                .throttleLimit(10)
                 .build();
     }
 
@@ -133,6 +139,8 @@ public class SettlementJobConfiguration {
                 .reader(actualSettlementAmountBySaleMemberArtworkItemReader())
                 .processor(actualSettlementAmountBySaleMemberArtworkItemProcessor(date))
                 .writer(actualSettlementAmountBySaleMemberArtworkItemWriter())
+                .taskExecutor(this.taskExecutor)
+                .throttleLimit(10)
                 .build();
     }
 
@@ -144,6 +152,8 @@ public class SettlementJobConfiguration {
                 .reader(actualSettlementAmountByBusinessMemberArtworkItemReader())
                 .processor(actualSettlementAmountByBusinessMemberArtworkItemProcessor(date))
                 .writer(actualSettlementAmountByBusinessMemberArtworkItemWriter())
+                .taskExecutor(this.taskExecutor)
+                .throttleLimit(10)
                 .build();
     }
 
@@ -164,6 +174,8 @@ public class SettlementJobConfiguration {
                 .<Artwork, Artwork>chunk(CHUNK_SIZE)
                 .reader(updateViewsExcludingThisMonthOfArtworkItemReader())
                 .writer(updateViewsExcludingThisMonthOfArtworkItemWriter())
+                .taskExecutor(this.taskExecutor)
+                .throttleLimit(10)
                 .build();
     }
 
