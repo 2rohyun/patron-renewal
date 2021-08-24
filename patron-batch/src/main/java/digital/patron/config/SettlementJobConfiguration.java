@@ -3,6 +3,9 @@ package digital.patron.config;
 import digital.patron.domain.*;
 import digital.patron.dto.ArtworkDto;
 import digital.patron.dto.MonthSubscriptionDto;
+import digital.patron.partitioner.ArtworkPartitioner;
+import digital.patron.partitioner.BusinessMemberPartitioner;
+import digital.patron.partitioner.SaleMemberPartitioner;
 import digital.patron.repository.*;
 import digital.patron.tasklet.SaveMemberTasklet;
 import digital.patron.utils.SettlementJobListener;
@@ -13,7 +16,10 @@ import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.JobScope;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
+import org.springframework.batch.core.partition.PartitionHandler;
+import org.springframework.batch.core.partition.support.TaskExecutorPartitionHandler;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
@@ -54,6 +60,7 @@ public class SettlementJobConfiguration {
     private final StreamingStatisticsDetailRepository streamingStatisticsDetailRepository;
     private final ArtworkRepository artworkRepository;
     private final EntityManagerFactory entityManagerFactory;
+    private final TaskExecutor taskExecutor;
     private final int CHUNK_SIZE = 100;
 
     @Bean
@@ -63,12 +70,12 @@ public class SettlementJobConfiguration {
                 .start(this.saveMemberStep()) // 샘플 데이터 저장
                 .next(this.totalAmountOfMonthSubscriptionStep(null)) // 월 구독 전체 매출액
                 .next(this.totalNumberOfViewsOfArtworkStep(null)) // 집계 기간 유, 무료 작품 총 플레이 횟수
-                .next(this.actualSettlementAmountBySaleMemberStep(null)) // 권리자(판매 회원)별 실 정산 금액
-                .next(this.actualSettlementAMountByBusinessMemberStep(null)) // 권리자(기업 회원)별 실 정산 금액
-                .next(this.actualSettlementAmountBySaleMemberArtworksStep(null)) // 권리자(판매 회원) 작품 별 실 정산 금액
-                .next(this.actualSettlementAmountByBusinessMemberArtworksStep(null)) // 권리자(기업 회원) 작품 별 실 정산 금액
+                .next(this.actualSettlementAmountBySaleMemberManagerStep()) // 권리자(판매 회원)별 실 정산 금액
+                .next(this.actualSettlementAmountByBusinessMemberManagerStep()) // 권리자(기업 회원)별 실 정산 금액
+                .next(this.actualSettlementAmountBySaleMemberArtworksManagerStep()) // 권리자(판매 회원) 작품 별 실 정산 금액
+                .next(this.actualSettlementAmountByBusinessMemberArtworksManagerStep()) // 권리자(기업 회원) 작품 별 실 정산 금액
                 .next(this.grossProfitStep(null)) //집계 기간 총 순익
-                .next(this.updateViewsExcludingThisMonthOfArtworkStep())// 작품 이번 달 제외 조회 수 업데이트
+                .next(this.updateViewsExcludingThisMonthOfArtworkManagerStep())// 작품 이번 달 제외 조회 수 업데이트
                 .listener(new SettlementJobListener(streamingStatisticsRepository))
                 .build();
     }
@@ -103,47 +110,79 @@ public class SettlementJobConfiguration {
     }
 
     @Bean
-    @JobScope
-    public Step actualSettlementAmountBySaleMemberStep(@Value("#{jobParameters[date]}") String date) throws Exception {
+    public Step actualSettlementAmountBySaleMemberStep() throws Exception {
         return this.stepBuilderFactory.get("actualSettlementAmountBySaleMemberStep")
                 .<SaleMember, StreamingStatistics>chunk(CHUNK_SIZE)
-                .reader(actualSettlementAmountBySaleMemberItemReader())
-                .processor(actualSettlementAmountBySaleMemberItemProcessor(date))
+                .reader(actualSettlementAmountBySaleMemberItemReader(null,null))
+                .processor(actualSettlementAmountBySaleMemberItemProcessor(null))
                 .writer(actualSettlementAmountBySaleMemberItemWriter())
                 .build();
 
     }
 
     @Bean
-    @JobScope
-    public Step actualSettlementAMountByBusinessMemberStep(@Value("#{jobParameters[date]}") String date) throws Exception {
+    public Step actualSettlementAmountBySaleMemberManagerStep() throws Exception {
+        return this.stepBuilderFactory.get("actualSettlementAmountBySaleMemberManagerStep")
+                .partitioner("actualSettlementAmountBySaleMemberStep", new SaleMemberPartitioner(saleMemberRepository))
+                .step(actualSettlementAmountBySaleMemberStep())
+                .partitionHandler(SaleMemberTaskExecutorPartitionHandler())
+                .build();
+    }
+
+    @Bean
+    public Step actualSettlementAmountByBusinessMemberStep() throws Exception {
         return this.stepBuilderFactory.get("actualSettlementAMountByBusinessMemberStep")
                 .<BusinessMember, StreamingStatistics>chunk(CHUNK_SIZE)
-                .reader(actualSettlementAmountByBusinessMemberItemReader())
-                .processor(actualSettlementAmountByBusinessMemberItemProcessor(date))
+                .reader(actualSettlementAmountByBusinessMemberItemReader(null,null))
+                .processor(actualSettlementAmountByBusinessMemberItemProcessor(null))
                 .writer(actualSettlementAmountByBusinessMemberItemWriter())
                 .build();
     }
 
     @Bean
-    @JobScope
-    public Step actualSettlementAmountBySaleMemberArtworksStep(@Value("#{jobParameters[date]}") String date) throws Exception {
+    public Step actualSettlementAmountByBusinessMemberManagerStep() throws Exception {
+        return this.stepBuilderFactory.get("actualSettlementAmountByBusinessMemberManagerStep")
+                .partitioner("actualSettlementAMountByBusinessMemberStep", new BusinessMemberPartitioner(businessMemberRepository))
+                .step(actualSettlementAmountByBusinessMemberStep())
+                .partitionHandler(BusinessMemberTaskExecutorPartitionHandler())
+                .build();
+    }
+
+    @Bean
+    public Step actualSettlementAmountBySaleMemberArtworksStep() throws Exception {
         return this.stepBuilderFactory.get("actualSettlementAmountBySaleMemberArtworksStep")
                 .<SaleMember, List<StreamingStatisticsDetail>>chunk(CHUNK_SIZE)
-                .reader(actualSettlementAmountBySaleMemberArtworkItemReader())
-                .processor(actualSettlementAmountBySaleMemberArtworkItemProcessor(date))
+                .reader(actualSettlementAmountBySaleMemberArtworkItemReader(null,null))
+                .processor(actualSettlementAmountBySaleMemberArtworkItemProcessor(null))
                 .writer(actualSettlementAmountBySaleMemberArtworkItemWriter())
                 .build();
     }
 
     @Bean
-    @JobScope
-    public Step actualSettlementAmountByBusinessMemberArtworksStep(@Value("#{jobParameters[date]}") String date) throws Exception {
+    public Step actualSettlementAmountBySaleMemberArtworksManagerStep() throws Exception {
+        return this.stepBuilderFactory.get("actualSettlementAmountBySaleMemberArtworksManagerStep")
+                .partitioner("actualSettlementAmountBySaleMemberArtworksStep", new SaleMemberPartitioner(saleMemberRepository))
+                .step(actualSettlementAmountBySaleMemberArtworksStep())
+                .partitionHandler(SaleMemberArtworksTaskExecutorPartitionHandler())
+                .build();
+    }
+
+    @Bean
+    public Step actualSettlementAmountByBusinessMemberArtworksStep() throws Exception {
         return this.stepBuilderFactory.get("actualSettlementAmountByBusinessMemberArtworksStep")
                 .<BusinessMember, List<StreamingStatisticsDetail>>chunk(CHUNK_SIZE)
-                .reader(actualSettlementAmountByBusinessMemberArtworkItemReader())
-                .processor(actualSettlementAmountByBusinessMemberArtworkItemProcessor(date))
+                .reader(actualSettlementAmountByBusinessMemberArtworkItemReader(null,null))
+                .processor(actualSettlementAmountByBusinessMemberArtworkItemProcessor(null))
                 .writer(actualSettlementAmountByBusinessMemberArtworkItemWriter())
+                .build();
+    }
+
+    @Bean
+    public Step actualSettlementAmountByBusinessMemberArtworksManagerStep() throws Exception {
+        return this.stepBuilderFactory.get("actualSettlementAmountByBusinessMemberArtworksManagerStep")
+                .partitioner("actualSettlementAmountByBusinessMemberArtworksStep", new BusinessMemberPartitioner(businessMemberRepository))
+                .step(actualSettlementAmountByBusinessMemberArtworksStep())
+                .partitionHandler(BusinessMemberArtworksTaskExecutorPartitionHandler())
                 .build();
     }
 
@@ -162,8 +201,17 @@ public class SettlementJobConfiguration {
     public Step updateViewsExcludingThisMonthOfArtworkStep() throws Exception {
         return this.stepBuilderFactory.get("updateViewsExcludingThisMonthOfArtworkStep")
                 .<Artwork, Artwork>chunk(CHUNK_SIZE)
-                .reader(updateViewsExcludingThisMonthOfArtworkItemReader())
+                .reader(updateViewsExcludingThisMonthOfArtworkItemReader(null,null))
                 .writer(updateViewsExcludingThisMonthOfArtworkItemWriter())
+                .build();
+    }
+
+    @Bean
+    public Step updateViewsExcludingThisMonthOfArtworkManagerStep() throws Exception {
+        return this.stepBuilderFactory.get("updateViewsExcludingThisMonthOfArtworkManagerStep")
+                .partitioner("updateViewsExcludingThisMonthOfArtworkStep", new ArtworkPartitioner(artworkRepository))
+                .step(updateViewsExcludingThisMonthOfArtworkStep())
+                .partitionHandler(ArtworkTaskExecutorPartitionHandler())
                 .build();
     }
 
@@ -251,17 +299,27 @@ public class SettlementJobConfiguration {
         return streamingTotal -> streamingTotal.forEach(streamingTotalRepository::save);
     }
 
-    private ItemReader<? extends SaleMember> actualSettlementAmountBySaleMemberItemReader() throws Exception {
+    @Bean
+    @StepScope
+    public JpaPagingItemReader<? extends SaleMember> actualSettlementAmountBySaleMemberItemReader(@Value("#{stepExecutionContext[minId]}") Long minId,
+                                                                                                  @Value("#{stepExecutionContext[maxId]}") Long maxId) throws Exception {
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("minId", minId);
+        parameters.put("maxId", maxId);
+
         JpaPagingItemReader<SaleMember> reader = new JpaPagingItemReader<>();
         reader.setEntityManagerFactory(entityManagerFactory);
-        reader.setQueryString("select s from SaleMember s");
+        reader.setQueryString("select s from SaleMember s where s.id between :minId and :maxId");
+        reader.setParameterValues(parameters);
         reader.setPageSize(CHUNK_SIZE);
 
         reader.afterPropertiesSet();
         return reader;
     }
 
-    private ItemProcessor<? super SaleMember,? extends StreamingStatistics> actualSettlementAmountBySaleMemberItemProcessor(String date) {
+    @Bean
+    @StepScope
+    public ItemProcessor<? super SaleMember,? extends StreamingStatistics> actualSettlementAmountBySaleMemberItemProcessor(@Value("#{jobParameters[date]}") String date) {
         Map<String, Object> startEndMap = getStartDateTimeAndEndDateTimeOfYearMonth(date);
         LocalDateTime aggregationStart = (LocalDateTime) startEndMap.get("startDateTime");
         StreamingTotal streamingTotal = streamingTotalRepository.findByAggregationStartTime(aggregationStart)
@@ -299,21 +357,33 @@ public class SettlementJobConfiguration {
         };
     }
 
-    private ItemWriter<? super StreamingStatistics> actualSettlementAmountBySaleMemberItemWriter() {
+    @Bean
+    @StepScope
+    public ItemWriter<? super StreamingStatistics> actualSettlementAmountBySaleMemberItemWriter() {
         return streamingStatisticsRepository::saveAll;
     }
 
-    private ItemReader<? extends BusinessMember> actualSettlementAmountByBusinessMemberItemReader() throws Exception {
+    @Bean
+    @StepScope
+    public JpaPagingItemReader<? extends BusinessMember> actualSettlementAmountByBusinessMemberItemReader(@Value("#{stepExecutionContext[minId]}") Long minId,
+                                                                                                          @Value("#{stepExecutionContext[maxId]}") Long maxId) throws Exception {
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("minId", minId);
+        parameters.put("maxId", maxId);
+
         JpaPagingItemReader<BusinessMember> reader = new JpaPagingItemReader<>();
         reader.setEntityManagerFactory(entityManagerFactory);
-        reader.setQueryString("select b from BusinessMember b");
+        reader.setQueryString("select b from BusinessMember b where b.id between :minId and :maxId");
+        reader.setParameterValues(parameters);
         reader.setPageSize(CHUNK_SIZE);
 
         reader.afterPropertiesSet();
         return reader;
     }
 
-    private ItemProcessor<? super BusinessMember,? extends StreamingStatistics> actualSettlementAmountByBusinessMemberItemProcessor(String date) {
+    @Bean
+    @StepScope
+    public ItemProcessor<? super BusinessMember,? extends StreamingStatistics> actualSettlementAmountByBusinessMemberItemProcessor(@Value("#{jobParameters[date]}") String date) {
         Map<String, Object> startEndMap = getStartDateTimeAndEndDateTimeOfYearMonth(date);
         LocalDateTime aggregationStart = (LocalDateTime) startEndMap.get("startDateTime");
         StreamingTotal streamingTotal = streamingTotalRepository.findByAggregationStartTime(aggregationStart)
@@ -351,21 +421,33 @@ public class SettlementJobConfiguration {
         };
     }
 
-    private ItemWriter<? super StreamingStatistics> actualSettlementAmountByBusinessMemberItemWriter() {
+    @Bean
+    @StepScope
+    public ItemWriter<? super StreamingStatistics> actualSettlementAmountByBusinessMemberItemWriter() {
         return streamingStatisticsList -> streamingStatisticsList.forEach(streamingStatisticsRepository::save);
     }
 
-    private ItemReader<? extends SaleMember> actualSettlementAmountBySaleMemberArtworkItemReader() throws Exception {
+    @Bean
+    @StepScope
+    public JpaPagingItemReader<? extends SaleMember> actualSettlementAmountBySaleMemberArtworkItemReader(@Value("#{stepExecutionContext[minId]}") Long minId,
+                                                                                                         @Value("#{stepExecutionContext[maxId]}") Long maxId) throws Exception {
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("minId", minId);
+        parameters.put("maxId", maxId);
+
         JpaPagingItemReader<SaleMember> reader = new JpaPagingItemReader<>();
         reader.setEntityManagerFactory(entityManagerFactory);
-        reader.setQueryString("select s from SaleMember s");
+        reader.setQueryString("select s from SaleMember s where s.id between :minId and :maxId");
+        reader.setParameterValues(parameters);
         reader.setPageSize(CHUNK_SIZE);
 
         reader.afterPropertiesSet();
         return reader;
     }
 
-    private ItemProcessor<? super SaleMember,? extends List<StreamingStatisticsDetail>> actualSettlementAmountBySaleMemberArtworkItemProcessor(String date) {
+    @Bean
+    @StepScope
+    public ItemProcessor<? super SaleMember,? extends List<StreamingStatisticsDetail>> actualSettlementAmountBySaleMemberArtworkItemProcessor(@Value("#{jobParameters[date]}") String date) {
         Map<String, Object> startEndMap = getStartDateTimeAndEndDateTimeOfYearMonth(date);
         LocalDateTime aggregationStart = (LocalDateTime) startEndMap.get("startDateTime");
         StreamingTotal streamingTotal = streamingTotalRepository.findByAggregationStartTime(aggregationStart)
@@ -390,21 +472,33 @@ public class SettlementJobConfiguration {
         };
     }
 
-    private ItemWriter<? super List<StreamingStatisticsDetail>> actualSettlementAmountBySaleMemberArtworkItemWriter() {
+    @Bean
+    @StepScope
+    public ItemWriter<? super List<StreamingStatisticsDetail>> actualSettlementAmountBySaleMemberArtworkItemWriter() {
         return streamingStatisticsDetails -> streamingStatisticsDetails.forEach(streamingStatisticsDetailRepository::saveAll);
     }
 
-    private ItemReader<? extends BusinessMember> actualSettlementAmountByBusinessMemberArtworkItemReader() throws Exception{
+    @Bean
+    @StepScope
+    public JpaPagingItemReader<? extends BusinessMember> actualSettlementAmountByBusinessMemberArtworkItemReader(@Value("#{stepExecutionContext[minId]}") Long minId,
+                                                                                                                 @Value("#{stepExecutionContext[maxId]}") Long maxId) throws Exception{
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("minId", minId);
+        parameters.put("maxId", maxId);
+
         JpaPagingItemReader<BusinessMember> reader = new JpaPagingItemReader<>();
         reader.setEntityManagerFactory(entityManagerFactory);
-        reader.setQueryString("select b from BusinessMember b");
+        reader.setQueryString("select b from BusinessMember b where b.id between :minId and :maxId");
+        reader.setParameterValues(parameters);
         reader.setPageSize(CHUNK_SIZE);
 
         reader.afterPropertiesSet();
         return reader;
     }
 
-    private ItemProcessor<? super BusinessMember,? extends List<StreamingStatisticsDetail>> actualSettlementAmountByBusinessMemberArtworkItemProcessor(String date) {
+    @Bean
+    @StepScope
+    public ItemProcessor<? super BusinessMember,? extends List<StreamingStatisticsDetail>> actualSettlementAmountByBusinessMemberArtworkItemProcessor(@Value("#{jobParameters[date]}") String date) {
         Map<String, Object> startEndMap = getStartDateTimeAndEndDateTimeOfYearMonth(date);
         LocalDateTime aggregationStart = (LocalDateTime) startEndMap.get("startDateTime");
         StreamingTotal streamingTotal = streamingTotalRepository.findByAggregationStartTime(aggregationStart)
@@ -429,7 +523,9 @@ public class SettlementJobConfiguration {
         };
     }
 
-    private ItemWriter<? super List<StreamingStatisticsDetail>> actualSettlementAmountByBusinessMemberArtworkItemWriter() {
+    @Bean
+    @StepScope
+    public ItemWriter<? super List<StreamingStatisticsDetail>> actualSettlementAmountByBusinessMemberArtworkItemWriter() {
         return streamingStatisticsDetails -> streamingStatisticsDetails.forEach(streamingStatisticsDetailRepository::saveAll);
     }
 
@@ -459,10 +555,19 @@ public class SettlementJobConfiguration {
         return streamingTotals -> streamingTotals.forEach(streamingTotalRepository::save);
     }
 
-    private ItemReader<? extends Artwork> updateViewsExcludingThisMonthOfArtworkItemReader() throws Exception {
+    @Bean
+    @StepScope
+    public JpaPagingItemReader<? extends Artwork> updateViewsExcludingThisMonthOfArtworkItemReader(@Value("#{stepExecutionContext[minId]}") Long minId,
+                                                                                                   @Value("#{stepExecutionContext[maxId]}") Long maxId) throws Exception {
+
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("minId", minId);
+        parameters.put("maxId", maxId);
+
         JpaPagingItemReader<Artwork> reader = new JpaPagingItemReader<>();
         reader.setEntityManagerFactory(entityManagerFactory);
-        reader.setQueryString("select a from Artwork a");
+        reader.setQueryString("select a from Artwork a where a.id between :minId and :maxId");
+        reader.setParameterValues(parameters);
         reader.setPageSize(CHUNK_SIZE);
 
         reader.afterPropertiesSet();
@@ -470,7 +575,9 @@ public class SettlementJobConfiguration {
         return reader;
     }
 
-    private ItemWriter<? super Artwork> updateViewsExcludingThisMonthOfArtworkItemWriter() {
+    @Bean
+    @StepScope
+    public ItemWriter<? super Artwork> updateViewsExcludingThisMonthOfArtworkItemWriter() {
         return artworks -> artworks.forEach(a-> {
             a.changeViewsExcludingThisMonth(a.getNumberOfViews());
             artworkRepository.save(a);
@@ -484,5 +591,54 @@ public class SettlementJobConfiguration {
         parameters.put("startDateTime",yearMonth.atDay(1).atTime(0,0,0));
         parameters.put("endDateTime",yearMonth.atEndOfMonth().atTime(23,59,59));
         return parameters;
+    }
+
+    @Bean
+    public PartitionHandler SaleMemberTaskExecutorPartitionHandler() throws Exception {
+        TaskExecutorPartitionHandler handler = new TaskExecutorPartitionHandler();
+        handler.setStep(actualSettlementAmountBySaleMemberStep());
+        handler.setTaskExecutor(this.taskExecutor);
+        handler.setGridSize(10);
+
+        return handler;
+    }
+
+    @Bean
+    public PartitionHandler BusinessMemberTaskExecutorPartitionHandler() throws Exception {
+        TaskExecutorPartitionHandler handler = new TaskExecutorPartitionHandler();
+        handler.setStep(actualSettlementAmountByBusinessMemberStep());
+        handler.setTaskExecutor(this.taskExecutor);
+        handler.setGridSize(10);
+
+        return handler;
+    }
+
+    @Bean
+    public PartitionHandler SaleMemberArtworksTaskExecutorPartitionHandler() throws Exception {
+        TaskExecutorPartitionHandler handler = new TaskExecutorPartitionHandler();
+        handler.setStep(actualSettlementAmountBySaleMemberArtworksStep());
+        handler.setTaskExecutor(this.taskExecutor);
+        handler.setGridSize(10);
+
+        return handler;
+    }
+
+    @Bean
+    public PartitionHandler BusinessMemberArtworksTaskExecutorPartitionHandler() throws Exception {
+        TaskExecutorPartitionHandler handler = new TaskExecutorPartitionHandler();
+        handler.setStep(actualSettlementAmountByBusinessMemberArtworksStep());
+        handler.setTaskExecutor(this.taskExecutor);
+        handler.setGridSize(10);
+
+        return handler;
+    }
+
+    private PartitionHandler ArtworkTaskExecutorPartitionHandler() throws Exception {
+        TaskExecutorPartitionHandler handler = new TaskExecutorPartitionHandler();
+        handler.setStep(updateViewsExcludingThisMonthOfArtworkStep());
+        handler.setTaskExecutor(this.taskExecutor);
+        handler.setGridSize(10);
+
+        return handler;
     }
 }
