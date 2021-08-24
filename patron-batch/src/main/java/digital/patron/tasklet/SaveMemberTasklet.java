@@ -143,7 +143,9 @@ public class SaveMemberTasklet implements Tasklet {
                             i * 2 - i,
                             LocalDate.now(),
                             LocalDate.now(),
-                            LocalDateTime.now()
+                            LocalDateTime.now(),
+                            null,
+                            null
                     ))
                     )
             );
@@ -212,7 +214,9 @@ public class SaveMemberTasklet implements Tasklet {
                                     i * 2 - i,
                                     LocalDate.now(),
                                     LocalDate.now(),
-                                    LocalDateTime.now()
+                                    LocalDateTime.now(),
+                                    null,
+                                    null
                             ))
                     )
             );

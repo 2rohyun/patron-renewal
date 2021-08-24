@@ -21,6 +21,7 @@ import org.springframework.batch.item.database.JpaPagingItemReader;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.TaskExecutor;
 
 import javax.persistence.EntityManagerFactory;
 import java.math.BigDecimal;
@@ -34,19 +35,15 @@ import java.util.stream.Collectors;
 @Configuration
 public class SettlementJobConfiguration {
 
-    //todo [기능 추가]
-    // 1. decider 붙히기
-    // 2. 데이터 처리 건수 listener 에 추가
 
     //todo [성능 최적화 부분]
-    // 3. N + 1 문제 해결
-    // 4. 바람직한 chunk size 찾기
-    // 5. Async, MultiThread, Parallel, Partition 각각 적용하고 무엇이 제일 빠른지 확인 후 적용
+    // 1.(화) Async, MultiThread, Parallel, Partition 각각 적용하고 무엇이 제일 빠른지 확인 후 적용
 
     //todo [etc]
-    // 6. 테스트 코드 작성
-    // 7. 젠킨스 붙히기
-    // 8. 문서화
+    // 2.(수,목,금) 젠킨스 붙히기
+    // 3.(월,화) 문서화
+    // 4.(남는 시간) 테스트 코드 작성
+
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
     private final GeneralMemberRepository generalMemberRepository;
@@ -55,6 +52,7 @@ public class SettlementJobConfiguration {
     private final StreamingTotalRepository streamingTotalRepository;
     private final StreamingStatisticsRepository streamingStatisticsRepository;
     private final StreamingStatisticsDetailRepository streamingStatisticsDetailRepository;
+    private final ArtworkRepository artworkRepository;
     private final EntityManagerFactory entityManagerFactory;
     private final int CHUNK_SIZE = 100;
 
@@ -62,7 +60,7 @@ public class SettlementJobConfiguration {
     public Job settlementJob() throws Exception {
         return this.jobBuilderFactory.get("settlementJob")
                 .incrementer(new RunIdIncrementer())
-                .start(this.saveMemberStep()) // 샘플 데이터 저장 Step
+                .start(this.saveMemberStep()) // 샘플 데이터 저장
                 .next(this.totalAmountOfMonthSubscriptionStep(null)) // 월 구독 전체 매출액
                 .next(this.totalNumberOfViewsOfArtworkStep(null)) // 집계 기간 유, 무료 작품 총 플레이 횟수
                 .next(this.actualSettlementAmountBySaleMemberStep(null)) // 권리자(판매 회원)별 실 정산 금액
@@ -70,6 +68,7 @@ public class SettlementJobConfiguration {
                 .next(this.actualSettlementAmountBySaleMemberArtworksStep(null)) // 권리자(판매 회원) 작품 별 실 정산 금액
                 .next(this.actualSettlementAmountByBusinessMemberArtworksStep(null)) // 권리자(기업 회원) 작품 별 실 정산 금액
                 .next(this.grossProfitStep(null)) //집계 기간 총 순익
+                .next(this.updateViewsExcludingThisMonthOfArtworkStep())// 작품 이번 달 제외 조회 수 업데이트
                 .listener(new SettlementJobListener(streamingStatisticsRepository))
                 .build();
     }
@@ -159,6 +158,15 @@ public class SettlementJobConfiguration {
                 .build();
     }
 
+    @Bean
+    public Step updateViewsExcludingThisMonthOfArtworkStep() throws Exception {
+        return this.stepBuilderFactory.get("updateViewsExcludingThisMonthOfArtworkStep")
+                .<Artwork, Artwork>chunk(CHUNK_SIZE)
+                .reader(updateViewsExcludingThisMonthOfArtworkItemReader())
+                .writer(updateViewsExcludingThisMonthOfArtworkItemWriter())
+                .build();
+    }
+
     private ItemReader<? extends MonthSubscriptionDto> totalAmountOfMonthSubscriptionItemReader(String date) throws Exception {
         Map<String, Object> parameters = getStartDateTimeAndEndDateTimeOfYearMonth(date);
 
@@ -171,7 +179,6 @@ public class SettlementJobConfiguration {
                 " and m.membershipStartTime <= :endDateTime");
         reader.setParameterValues(parameters);
         reader.setPageSize(CHUNK_SIZE);
-
         reader.afterPropertiesSet();
 
         return reader;
@@ -207,7 +214,6 @@ public class SettlementJobConfiguration {
         reader.setEntityManagerFactory(entityManagerFactory);
         reader.setQueryString("select a from Artwork a");
         reader.setPageSize(CHUNK_SIZE);
-
         reader.afterPropertiesSet();
 
         return reader;
@@ -250,6 +256,7 @@ public class SettlementJobConfiguration {
         reader.setEntityManagerFactory(entityManagerFactory);
         reader.setQueryString("select s from SaleMember s");
         reader.setPageSize(CHUNK_SIZE);
+
         reader.afterPropertiesSet();
         return reader;
     }
@@ -301,6 +308,7 @@ public class SettlementJobConfiguration {
         reader.setEntityManagerFactory(entityManagerFactory);
         reader.setQueryString("select b from BusinessMember b");
         reader.setPageSize(CHUNK_SIZE);
+
         reader.afterPropertiesSet();
         return reader;
     }
@@ -352,6 +360,7 @@ public class SettlementJobConfiguration {
         reader.setEntityManagerFactory(entityManagerFactory);
         reader.setQueryString("select s from SaleMember s");
         reader.setPageSize(CHUNK_SIZE);
+
         reader.afterPropertiesSet();
         return reader;
     }
@@ -390,6 +399,7 @@ public class SettlementJobConfiguration {
         reader.setEntityManagerFactory(entityManagerFactory);
         reader.setQueryString("select b from BusinessMember b");
         reader.setPageSize(CHUNK_SIZE);
+
         reader.afterPropertiesSet();
         return reader;
     }
@@ -447,6 +457,24 @@ public class SettlementJobConfiguration {
 
     private ItemWriter<? super StreamingTotal> grossProfitItemWriter() {
         return streamingTotals -> streamingTotals.forEach(streamingTotalRepository::save);
+    }
+
+    private ItemReader<? extends Artwork> updateViewsExcludingThisMonthOfArtworkItemReader() throws Exception {
+        JpaPagingItemReader<Artwork> reader = new JpaPagingItemReader<>();
+        reader.setEntityManagerFactory(entityManagerFactory);
+        reader.setQueryString("select a from Artwork a");
+        reader.setPageSize(CHUNK_SIZE);
+
+        reader.afterPropertiesSet();
+
+        return reader;
+    }
+
+    private ItemWriter<? super Artwork> updateViewsExcludingThisMonthOfArtworkItemWriter() {
+        return artworks -> artworks.forEach(a-> {
+            a.changeViewsExcludingThisMonth(a.getNumberOfViews());
+            artworkRepository.save(a);
+        });
     }
 
     private Map<String, Object> getStartDateTimeAndEndDateTimeOfYearMonth(String date) {

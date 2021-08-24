@@ -53,6 +53,12 @@ public class Artwork {
 
     private LocalDateTime registeredAt;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    private SaleMember saleMember;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    private BusinessMember businessMember;
+
     public void changeViewsExcludingThisMonth(int viewsExcludingThisMonth) {
         this.viewsExcludingThisMonth = viewsExcludingThisMonth;
     }
