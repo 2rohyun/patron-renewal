@@ -5,6 +5,7 @@ import digital.patron.ContentsManagement.domain.artist.SurviveArtist;
 import digital.patron.ContentsManagement.utils.BaseTimeEntity;
 import digital.patron.ContentsManagement.utils.BooleanToYNConverter;
 import digital.patron.ContentsManagement.domain.integrate.ArtworkExhibition;
+import digital.patron.PatronMembers.domain.BusinessMember;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -101,6 +102,13 @@ public class Artwork extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     private DeathArtist deathArtist;
 
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    private BusinessMember businessMember;
+
+    public void setBusinessMember(BusinessMember businessMember) {
+        this.businessMember = businessMember;
+    }
 
     // 기본 생성자 //
     // protected 인 이유 : 실제로 사용하진 않지만, JPA 스펙 상 선언해두어야 함. //

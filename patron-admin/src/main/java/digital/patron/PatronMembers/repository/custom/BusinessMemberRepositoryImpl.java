@@ -7,6 +7,7 @@ import java.util.List;
 
 import static digital.patron.PatronMembers.domain.QBusinessMember.businessMember;
 
+
 public class BusinessMemberRepositoryImpl implements BusinessMemberRepositoryCustom {
     private final JPAQueryFactory queryFactory;
 

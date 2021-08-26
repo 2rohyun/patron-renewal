@@ -26,7 +26,7 @@ public class BusinessManager {
     private String permission;
 
     @Column(length = 20)
-    private String phone_number;
+    private String tel;
 
     private LocalDateTime create_time;
     @Column(length = 300)
@@ -40,13 +40,13 @@ public class BusinessManager {
 
     }
 
-    public BusinessManager(String email, String name, String permission, LocalDateTime create_time, String password, String phone_number) {
+    public BusinessManager(String email, String name, String permission, LocalDateTime create_time, String password, String tel) {
         this.email = email;
         this.name = name;
         this.permission = permission;
         this.create_time = create_time;
         this.password = password;
-        this.phone_number = phone_number;
+        this.tel = tel;
     }
 
     public void setBusinessMember(BusinessMember businessMember) {

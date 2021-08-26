@@ -1,5 +1,6 @@
 package digital.patron.PatronMembers.domain;
 
+import digital.patron.ContentsManagement.domain.artwork.Artwork;
 import digital.patron.PatronMembers.domain.AccountInformation.AccountInfo;
 import digital.patron.PatronMembers.domain.BusinessInformation.BusinessLicense;
 import digital.patron.PatronMembers.domain.BusinessInformation.BusinessManager;
@@ -50,6 +51,9 @@ public class BusinessMember {
     private Set<MonthlySubscription> monthlySubscriptions = new HashSet<>();
 
     @OneToMany(mappedBy = "businessMember")
+    private Set<Artwork> artworks = new HashSet<>();
+
+    @OneToMany(mappedBy = "businessMember")
     private Set<BusinessManager> businessManagers = new HashSet<>();
 
     protected BusinessMember() {
@@ -77,6 +81,11 @@ public class BusinessMember {
     public void addMonthlySubscription(MonthlySubscription monthlySubscription) {
         monthlySubscriptions.add(monthlySubscription);
         monthlySubscription.setBusinessMember(this);
+    }
+
+    public void addArtworks(Artwork artwork) {
+        artworks.add(artwork);
+        artwork.setBusinessMember(this);
     }
 
     public void addBusinessManager(BusinessManager businessManager) {
