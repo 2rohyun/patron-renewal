@@ -35,10 +35,6 @@ import java.util.stream.Collectors;
 @Configuration
 public class SettlementJobConfiguration {
 
-
-    //todo [성능 최적화 부분]
-    // 1.(화) Async, MultiThread, Parallel, Partition 각각 적용하고 무엇이 제일 빠른지 확인 후 적용
-
     //todo [etc]
     // 2.(수,목,금) 젠킨스 붙히기
     // 3.(월,화) 문서화
