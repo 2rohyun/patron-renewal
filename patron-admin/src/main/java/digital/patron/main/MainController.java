@@ -1,6 +1,15 @@
 package digital.patron.main;
 
 import digital.patron.ContentsManagement.domain.artwork.Artwork;
+import digital.patron.AdminMembers.domain.Admin;
+import digital.patron.AdminMembers.repository.AdminRepository;
+import digital.patron.AdminMembers.service.AdminMembersService;
+import digital.patron.ContentsManagement.domain.artist.DeathArtist;
+import digital.patron.ContentsManagement.domain.artist.SurviveArtist;
+import digital.patron.ContentsManagement.domain.artwork.Artwork;
+import digital.patron.ContentsManagement.domain.exhibition.Exhibition;
+import digital.patron.ContentsManagement.dto.ApprovedArtworkDto;
+import digital.patron.ContentsManagement.dto.SearchNoApprovalArtworkDto;
 import digital.patron.ContentsManagement.service.ContentsManagementService;
 import digital.patron.PatronMembers.domain.BusinessInformation.BusinessManager;
 import digital.patron.PatronMembers.domain.BusinessMember;
@@ -16,12 +25,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Controller
@@ -32,20 +43,21 @@ public class MainController {
 
     private final PatronMembersService patronMembersService;
     private final ContentsManagementService contentsManagementService;
+    private final AdminMembersService adminMembersService;
 
     //General Member
-    @GetMapping("/general-user")
-    public String generalUser(Model model) {
-
+    @GetMapping("/general-member")
+    public String generalMember(Model model) {
         List<GeneralMember> generalMember = patronMembersService.getAllGeneralMembers();
 
         model.addAttribute("generalMember", generalMember);
         return "general-member";
     }
 
-    @GetMapping("api/general-user-search")
+
+    @GetMapping("api/general-member-search")
     @ResponseBody
-    public ResponseEntity<?> generalUserSearchResult(@RequestParam("keyword") String keyword, Model model) {
+    public ResponseEntity<?> generalMemberSearchResult(@RequestParam("keyword") String keyword, Model model) {
         List<GeneralMember> generalMembers = patronMembersService.searchGeneralMemberByKeyword(keyword);
 
         SearchMemberDto searchMemberDto = new SearchMemberDto(
@@ -59,19 +71,19 @@ public class MainController {
         return ResponseEntity.status(HttpStatus.OK).body(searchMemberDto);
     }
 
-    @GetMapping("/general-user-detail")
-    public String generalUserDetail(@RequestParam Long general_id, Model model) {
+    @GetMapping("/general-member-detail")
+    public String generalMemberDetail(@RequestParam Long general_id, Model model) {
         GeneralMember generalMemberDetails = patronMembersService.findGeneralMemberById(general_id);
         List<MonthlySubscription> generalMemberMonthlySubscriptions = patronMembersService.getMonthlySubscriptionByGeneralMemberId(general_id);
         model.addAttribute("generalMemberDetails", generalMemberDetails);
         model.addAttribute("generalMemberMonthlySubscriptions", generalMemberMonthlySubscriptions);
 
-        return "general-user-detail";
+        return "general-member-detail";
     }
 
     //Sale Member
-    @GetMapping("/sales-user")
-    public String saleUser(Model model) {
+    @GetMapping("/sales-member")
+    public String saleMember(Model model) {
 
         List<SaleMember> saleMembers = patronMembersService.getAllSaleMembers();
 
@@ -79,9 +91,9 @@ public class MainController {
         return "sales-member";
     }
 
-    @GetMapping("api/sales-user-search")
+    @GetMapping("api/sales-member-search")
     @ResponseBody
-    public ResponseEntity<?> saleUserSearchResult(@RequestParam("keyword") String keyword, Model model) {
+    public ResponseEntity<?> saleMemberSearchResult(@RequestParam("keyword") String keyword, Model model) {
         List<SaleMember> saleMembers = patronMembersService.searchSaleMemberByKeyword(keyword);
 
         SearchMemberDto searchMemberDto = new SearchMemberDto(
@@ -95,29 +107,27 @@ public class MainController {
         return ResponseEntity.status(HttpStatus.OK).body(searchMemberDto);
     }
 
-    @GetMapping("/sales-user-detail")
-    public String saleUserDetail(@RequestParam Long sale_id, Model model) {
+    @GetMapping("/sales-member-detail")
+    public String saleMemberDetail(@RequestParam Long sale_id, Model model) {
         SaleMember saleMemberDetails = patronMembersService.findSaleMemberById(sale_id);
         List<MonthlySubscription> saleMemberMonthlySubscriptions = patronMembersService.getMonthlySubscriptionBySaleMemberId(sale_id);
         model.addAttribute("saleMemberDetails", saleMemberDetails);
         model.addAttribute("saleMemberMonthlySubscriptions", saleMemberMonthlySubscriptions);
-
-        return "sales-user-detail";
+        return "sales-member-detail";
     }
 
     //BusinessMember
-    @GetMapping("/corporate-user")
-    public String businessUser(Model model) {
-
+    @GetMapping("/corporate-member")
+    public String businessMember(Model model) {
         List<BusinessMember> businessMembers = patronMembersService.getAllBusinessMembers();
 
         model.addAttribute("businessMember", businessMembers);
         return "corporate-member";
     }
 
-    @GetMapping("api/corporate-user-search")
+    @GetMapping("api/corporate-member-search")
     @ResponseBody
-    public ResponseEntity<?> businessUserSearchResult(@RequestParam("keyword") String keyword, Model model) {
+    public ResponseEntity<?> businessMemberSearchResult(@RequestParam("keyword") String keyword, Model model) {
         List<BusinessMember> businessMembers = patronMembersService.searchBusinessMemberByKeyword(keyword);
 
         SearchMemberDto searchMemberDto = new SearchMemberDto(
@@ -131,8 +141,8 @@ public class MainController {
         return ResponseEntity.status(HttpStatus.OK).body(searchMemberDto);
     }
 
-    @GetMapping("/corporate-user-detail")
-    public String businessUserDetail(@RequestParam Long business_id, Model model) {
+    @GetMapping("/corporate-member-detail")
+    public String businessMemberDetail(@RequestParam Long business_id, Model model) {
         BusinessMember businessMemberDetails = patronMembersService.findBusinessMemberById(business_id);
         List<MonthlySubscription> businessMemberMonthlySubscriptions = patronMembersService.getMonthlySubscriptionByBusinessMemberId(business_id);
         List<BusinessManager> businessMemberManagers = patronMembersService.getBusinessManagersByBusinessMemberId(business_id);
@@ -141,7 +151,7 @@ public class MainController {
         model.addAttribute("businessMemberMonthlySubscriptions", businessMemberMonthlySubscriptions);
         model.addAttribute("businessMemberManagers", businessMemberManagers);
 
-        return "corporate-user-detail";
+        return "corporate-member-detail";
     }
 
     @PostMapping("/new-corporate-manager")
@@ -157,9 +167,9 @@ public class MainController {
         );
         patronMembersService.saveBusinessManager(businessManager);
     }
-
-    @GetMapping("/left-user")
-    public String leftUser(Model model) {
+    //LeftMember
+    @GetMapping("/left-member")
+    public String leftMember(Model model) {
 
         List<LeftMember> leftMembers = patronMembersService.getAllLeftMembers();
 
@@ -167,13 +177,158 @@ public class MainController {
         return "left-member";
     }
 
-
+    //WaitingApproval
     @GetMapping("/waiting-approval")
     public String waitingApproval(Model model){
         List<Artwork> noApprovalArtworks = contentsManagementService.getNoApprovalArtworks();
 
         model.addAttribute("noApprovalArtworks",noApprovalArtworks);
         return "waiting-approval";
+    }
+
+    @GetMapping("api/waiting-approval-search")
+    @ResponseBody
+    public ResponseEntity<?> waitingApprovalSearchResult(@RequestParam("keyword") String keyword, Model model) {
+        List<Artwork> noApprovalArtworksSearchResult = contentsManagementService.searchNoApprovalArtworkByKeyword(keyword);
+
+        SearchNoApprovalArtworkDto searchNoApprovalArtworkDto = new SearchNoApprovalArtworkDto(
+                noApprovalArtworksSearchResult.stream().map(a -> a.getId()).collect(Collectors.toList()),
+                noApprovalArtworksSearchResult.stream().map(a -> a.getBusinessMember().getEmail()).collect(Collectors.toList()),
+                noApprovalArtworksSearchResult.stream().map(a -> a.getArtworkName()).collect(Collectors.toList()),
+                noApprovalArtworksSearchResult.stream().map(a -> a.getContentsThumbnail().getDefaultImg()).collect(Collectors.toList()),
+                noApprovalArtworksSearchResult.stream().map(a -> a.getDeathArtist() != null ? a.getDeathArtist().getKorName() : a.getSurviveArtist().getKorName()).collect(Collectors.toList()),
+                noApprovalArtworksSearchResult.stream().map(a -> a.getRegisteredAt()).collect(Collectors.toList())
+        );
+        return ResponseEntity.status(HttpStatus.OK).body(searchNoApprovalArtworkDto);
+    }
+
+    @GetMapping("/waiting-approval-detail")
+    public String waitingApprovalDetail(@RequestParam Long artwork_id, Model model) {
+        Artwork noApprovalArtwork = contentsManagementService.findArtworkById(artwork_id);
+
+        model.addAttribute("noApprovalArtwork", noApprovalArtwork);
+
+        return "waiting-approval-detail";
+    }
+
+    //Artwork Management
+    @GetMapping("/artwork")
+    public String artwork(Model model){
+        List<Artwork> Artworks = contentsManagementService.getApprovedArtworks();
+
+        model.addAttribute("artworks",Artworks);
+        return "artwork";
+    }
+    @GetMapping("api/artwork-search")
+    @ResponseBody
+    public ResponseEntity<?> artworkSearchResult(@RequestParam("keyword") String keyword, Model model) {
+        List<Artwork> ApprovedArtworkSearchResult = contentsManagementService.searchApprovedArtworkByKeyword(keyword);
+
+        ApprovedArtworkDto approvedArtworkDto = new ApprovedArtworkDto(
+                ApprovedArtworkSearchResult.stream().map(a -> a.getId()).collect(Collectors.toList()),
+                ApprovedArtworkSearchResult.stream().map(a -> a.getCode()).collect(Collectors.toList()),
+                ApprovedArtworkSearchResult.stream().map(a -> a.getArtworkName()).collect(Collectors.toList()),
+                ApprovedArtworkSearchResult.stream().map(a -> a.getDeathArtist() != null ? a.getDeathArtist().getKorName() : a.getSurviveArtist().getKorName()).collect(Collectors.toList())
+        );
+        return ResponseEntity.status(HttpStatus.OK).body(approvedArtworkDto);
+    }
+
+
+    @GetMapping("/artwork-detail")
+    public String artworkDetail(@RequestParam Long artwork_id, Model model) {
+        Artwork Artwork = contentsManagementService.findArtworkById(artwork_id);
+
+        model.addAttribute("Artwork", Artwork);
+
+        return "artwork-detail";
+    }
+
+
+//    @PostMapping("/new-artwork")
+//    public void newArtwork(@RequestBody ArtworkDto ArtworkDto) {
+//
+//        BusinessManager businessManager = new BusinessManager(
+//                businessManagerDto.getEmail(),
+//                businessManagerDto.getName(),
+//                businessManagerDto.getPermission(),
+//                LocalDateTime.now(),
+//                null,
+//                businessManagerDto.getPhone_number()
+//        );
+//        patronMembersService.saveBusinessManager(businessManager);
+//    }
+    //Artist Management
+
+    @GetMapping("/artist")
+    public String artist(Model model){
+        List<DeathArtist> deathArtists = contentsManagementService.getDeathArtists();
+        List<SurviveArtist> surviveArtists = contentsManagementService.getSurviveArtists();
+
+        if(deathArtists==null){
+            model.addAttribute("surviveArtists",surviveArtists);
+        }else if(surviveArtists==null){
+            model.addAttribute("deathArtists",deathArtists);
+        }else{
+            model.addAttribute("deathArtists",deathArtists);
+            model.addAttribute("surviveArtists",surviveArtists);
+        }
+        return "artist";
+    }
+
+
+    @GetMapping("/artist-detail")
+    public String artistDetail(@RequestParam(required = false) Long da_id,
+                               @RequestParam(required = false) Long sa_id,
+                               Model model) {
+
+        if(da_id==null){
+            SurviveArtist surviveArtist = contentsManagementService.findSurviveArtistById(sa_id);
+            model.addAttribute("surviveArtists",surviveArtist);
+        }else if(sa_id==null){
+            DeathArtist deathArtist = contentsManagementService.findDeathArtistById(da_id);
+            model.addAttribute("deathArtists",deathArtist);
+        }
+        return "artwork-detail";
+    }
+
+
+    //Exhibition Management
+
+    @GetMapping("/artist")
+    public String exhibition(Model model){
+        List<Exhibition> exhibitions = contentsManagementService.getExhibitions();
+
+        model.addAttribute("exhibitions",exhibitions);
+        return "exhibition";
+    }
+
+
+    @GetMapping("/exhibition-detail")
+    public String artistDetail(@RequestParam Long exh_id,
+                               Model model) {
+        Exhibition exhibition = contentsManagementService.getExhibitionById(exh_id);
+
+        model.addAttribute("exhibition",exhibition);
+
+
+        return "exhibition-detail";
+    }
+
+
+    //Admin Management
+    @PostMapping
+    public void newAdminPassword(@RequestParam String password, Model model){
+        String email = (String)SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        adminMembersService.setNewPasswordForAdmin(email,password);
+    }
+
+    @GetMapping("/admins")
+    public String getAdminMembers(Model model) {
+        List<Admin> admins = adminMembersService.getAdmins();
+
+        model.addAttribute("admins", admins);
+
+        return "admins";
     }
 
 

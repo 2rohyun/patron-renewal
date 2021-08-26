@@ -1,0 +1,15 @@
+version: 0.0
+os: linux
+files:
+  - source: /
+    destination: /home/jenkins/patron-batch/deploy
+permissions:
+  - object: /
+    pattern: "**"
+    owner: jenkins
+    group: jenkins
+hooks:
+  ApplicationStart:
+    - location: deploy.sh
+      timeout: 60
+      runas: ec2-user

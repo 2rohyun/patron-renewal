@@ -9,8 +9,11 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface ArtworkRepository extends JpaRepository<Artwork, Long> {
+public interface ArtworkRepository extends JpaRepository<Artwork, Long> , ArtworkRepositoryCustom {
 
+    @Query("select a from Artwork a where a.approve = false ")
+    List<Artwork> findArtworkByApproveIsFalse();
 
-    public List<Artwork> findArtworkByApproveIsFalse();
+    @Query("select a from Artwork a where a.approve = true ")
+    List<Artwork> findArtworkByApproveIsTrue();
 }
