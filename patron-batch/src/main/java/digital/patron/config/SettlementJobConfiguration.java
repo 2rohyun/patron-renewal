@@ -35,11 +35,6 @@ import java.util.stream.Collectors;
 @Configuration
 public class SettlementJobConfiguration {
 
-    //todo [etc]
-    // 2.(수,목,금) 젠킨스 붙히기
-    // 3.(월,화) 문서화
-    // 4.(남는 시간) 테스트 코드 작성
-
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
     private final GeneralMemberRepository generalMemberRepository;
@@ -54,23 +49,29 @@ public class SettlementJobConfiguration {
 
     private final TaskExecutor taskExecutor;
 
+    // 집계 및 정산 Job
     @Bean
     public Job settlementJob() throws Exception {
         return this.jobBuilderFactory.get("settlementJob")
                 .incrementer(new RunIdIncrementer())
-                .start(this.saveMemberStep()) // 샘플 데이터 저장
-                .next(this.totalAmountOfMonthSubscriptionStep(null)) // 월 구독 전체 매출액
-                .next(this.totalNumberOfViewsOfArtworkStep(null)) // 집계 기간 유, 무료 작품 총 플레이 횟수
-                .next(this.actualSettlementAmountBySaleMemberStep(null)) // 권리자(판매 회원)별 실 정산 금액
-                .next(this.actualSettlementAMountByBusinessMemberStep(null)) // 권리자(기업 회원)별 실 정산 금액
-                .next(this.actualSettlementAmountBySaleMemberArtworksStep(null)) // 권리자(판매 회원) 작품 별 실 정산 금액
-                .next(this.actualSettlementAmountByBusinessMemberArtworksStep(null)) // 권리자(기업 회원) 작품 별 실 정산 금액
-                .next(this.grossProfitStep(null)) //집계 기간 총 순익
-                .next(this.updateViewsExcludingThisMonthOfArtworkStep())// 작품 이번 달 제외 조회 수 업데이트
-                .listener(new SettlementJobListener(streamingStatisticsRepository))
+                .start(this.saveMemberStep()) // 샘플 데이터 저장 Step
+                .next(this.totalAmountOfMonthSubscriptionStep(null)) // 월 구독 전체 매출액 Step
+                .next(this.totalNumberOfViewsOfArtworkStep(null)) // 집계 기간 유, 무료 작품 총 플레이 횟수 Step
+                .next(this.actualSettlementAmountBySaleMemberStep(null)) // 권리자(판매 회원)별 실 정산 금액 Step
+                .next(this.actualSettlementAMountByBusinessMemberStep(null)) // 권리자(기업 회원)별 실 정산 금액 Step
+                .next(this.actualSettlementAmountBySaleMemberArtworksStep(null)) // 권리자(판매 회원) 작품 별 실 정산 금액 Step
+                .next(this.actualSettlementAmountByBusinessMemberArtworksStep(null)) // 권리자(기업 회원) 작품 별 실 정산 금액 Step
+                .next(this.grossProfitStep(null)) //집계 기간 총 순익 Step
+                .next(this.updateViewsExcludingThisMonthOfArtworkStep())// 작품 이번 달 제외 조회 수 업데이트 Step
+                .listener(new SettlementJobListener(streamingStatisticsRepository)) // 총 배치 소요 시간 및 업데이트된 데이터의 건수 listener
                 .build();
     }
 
+    /**
+     * 샘플 데이터 저장 Step
+     * 배치가 제대로 돌아가는지 확인하기 위한 샘플 데이터 저장 Step 으로, tasklet 기반
+     * GeneralMember, SaleMember, BusinessMember 각 3000 건씩 저장
+     */
     @Bean
     public Step saveMemberStep() {
         return this.stepBuilderFactory.get("saveMemberStep")
@@ -78,6 +79,11 @@ public class SettlementJobConfiguration {
                 .build();
     }
 
+    /**
+     * 월 구독 전체 매출액 Step
+     * 한 달간 모든 사용자의 월 구독 전체 매출을 구하는 Step 으로, chunk 기반
+     * @param date : job parameter 로 초기 배치 실행 시 program argument 에 넣어준다. ( ex. -date=2021.08 )
+     */
     @Bean
     @JobScope
     public Step totalAmountOfMonthSubscriptionStep(@Value("#{jobParameters[date]}") String date) throws Exception {
@@ -89,6 +95,11 @@ public class SettlementJobConfiguration {
                 .build();
     }
 
+    /**
+     * 집계 기간 유, 무료 작품 총 플레이 횟수 Step
+     * 집계 기간 ( 현재 구현 기준 한 달 ) 내의 유, 무료 작품 총 플레이 횟수를 구하는 Step 으로, chunk 기반
+     * @param date : job parameter 로 초기 배치 실행 시 program argument 에 넣어준다. ( ex. -date=2021.08 )
+     */
     @Bean
     @JobScope
     public Step totalNumberOfViewsOfArtworkStep(@Value("#{jobParameters[date]}") String date) throws Exception {
@@ -100,6 +111,12 @@ public class SettlementJobConfiguration {
                 .build();
     }
 
+    /**
+     * 권리자(판매 회원)별 실 정산 금액 Step
+     * 판매 회원이 가지고 있는 작품들에 따라 실 정산 금액을 구하는 Step 으로, chunk 기반
+     * chunk size ( 현재 100 ) 별로 10개의 쓰레드가 동시에 task 를 수행한다.
+     * @param date : job parameter 로 초기 배치 실행 시 program argument 에 넣어준다. ( ex. -date=2021.08 )
+     */
     @Bean
     @JobScope
     public Step actualSettlementAmountBySaleMemberStep(@Value("#{jobParameters[date]}") String date) throws Exception {
@@ -114,6 +131,12 @@ public class SettlementJobConfiguration {
 
     }
 
+    /**
+     * 권리자(기업 회원)별 실 정산 금액 Step
+     * 기업 회원이 가지고 있는 작품들에 따라 실 정산 금액을 구하는 Step 으로, chunk 기반
+     * chunk size ( 현재 100 ) 별로 10개의 쓰레드가 동시에 task 를 수행한다.
+     * @param date : job parameter 로 초기 배치 실행 시 program argument 에 넣어준다. ( ex. -date=2021.08 )
+     */
     @Bean
     @JobScope
     public Step actualSettlementAMountByBusinessMemberStep(@Value("#{jobParameters[date]}") String date) throws Exception {
@@ -127,6 +150,12 @@ public class SettlementJobConfiguration {
                 .build();
     }
 
+    /**
+     * 권리자(판매 회원) 작품 별 실 정산 금액 Step
+     * 판매 회원이 가지고 있는 각 작품 별로 실 정산 금액을 구하는 Step 으로, chunk 기반
+     * chunk size ( 현재 100 ) 별로 10개의 쓰레드가 동시에 task 를 수행한다.
+     * @param date : job parameter 로 초기 배치 실행 시 program argument 에 넣어준다. ( ex. -date=2021.08 )
+     */
     @Bean
     @JobScope
     public Step actualSettlementAmountBySaleMemberArtworksStep(@Value("#{jobParameters[date]}") String date) throws Exception {
@@ -140,6 +169,12 @@ public class SettlementJobConfiguration {
                 .build();
     }
 
+    /**
+     * 권리자(기업 회원) 작품 별 실 정산 금액 Step
+     * 기업 회원이 가지고 있는 각 작품 별로 실 정산 금액을 구하는 Step 으로, chunk 기반
+     * chunk size ( 현재 100 ) 별로 10개의 쓰레드가 동시에 task 를 수행한다.
+     * @param date : job parameter 로 초기 배치 실행 시 program argument 에 넣어준다. ( ex. -date=2021.08 )
+     */
     @Bean
     @JobScope
     public Step actualSettlementAmountByBusinessMemberArtworksStep(@Value("#{jobParameters[date]}") String date) throws Exception {
@@ -153,6 +188,11 @@ public class SettlementJobConfiguration {
                 .build();
     }
 
+    /**
+     * 집계 기간 총 순익 Step
+     * 집계 기간동안 작품 권리자들에게 정산을 해주고, 결제 수수료까지 제외한 총 순 이익을 구하는 Step 으로, chunk 기반
+     * @param date : job parameter 로 초기 배치 실행 시 program argument 에 넣어준다. ( ex. -date=2021.08 )
+     */
     @Bean
     @JobScope
     public Step grossProfitStep(@Value("#{jobParameters[date]}") String date) throws Exception{
@@ -164,6 +204,11 @@ public class SettlementJobConfiguration {
                 .build();
     }
 
+    /**
+     * 작품 이번 달 제외 조회 수 업데이트 Step
+     * 모든 집계 및 정산 Step 이 끝난 뒤, 다음 달의 조회 수를 산정하기 위해,
+     * Artwork 의 viewsExcludingThisMonth 컬럼을 이번 달 조회 수로 업데이트하는 Step 으로, chunk 기반
+     */
     @Bean
     public Step updateViewsExcludingThisMonthOfArtworkStep() throws Exception {
         return this.stepBuilderFactory.get("updateViewsExcludingThisMonthOfArtworkStep")
@@ -233,7 +278,8 @@ public class SettlementJobConfiguration {
         LocalDateTime aggregationStart = (LocalDateTime) startEndMap.get("startDateTime");
         StreamingTotal streamingTotal = streamingTotalRepository.findByAggregationStartTime(aggregationStart)
                 .orElseThrow(() -> new IllegalArgumentException("No streaming total found for input date"));
-        // 유, 무료로 골라서 뺀 다음에 StreamingTotal 객체 변경
+
+        // 작품에서 유, 무료로 골라서 조회 수를 각각 구한 뒤, StreamingTotal 객체에 추가
         ArtworkDto freeArtworkDto = new ArtworkDto(0,0);
         ArtworkDto paidArtworkDto = new ArtworkDto(0,0);
         return artwork -> {
@@ -270,11 +316,13 @@ public class SettlementJobConfiguration {
     }
 
     private ItemProcessor<? super SaleMember,? extends StreamingStatistics> actualSettlementAmountBySaleMemberItemProcessor(String date) {
+        // StreamingTotal 찾아오기
         Map<String, Object> startEndMap = getStartDateTimeAndEndDateTimeOfYearMonth(date);
         LocalDateTime aggregationStart = (LocalDateTime) startEndMap.get("startDateTime");
         StreamingTotal streamingTotal = streamingTotalRepository.findByAggregationStartTime(aggregationStart)
                 .orElseThrow(() -> new IllegalArgumentException("No streaming total found for input date"));
 
+        // saleMember 가 소유한 작품들의 유, 무료 작품 별 총 조회 수를 계산하여 StreamingStatistics 객체 생성
         return saleMember -> {
             int chargeFreeSum = saleMember.getArtworks().stream()
                     .filter(Artwork::isChargeFree)
@@ -322,11 +370,13 @@ public class SettlementJobConfiguration {
     }
 
     private ItemProcessor<? super BusinessMember,? extends StreamingStatistics> actualSettlementAmountByBusinessMemberItemProcessor(String date) {
+        // StreamingTotal 찾아오기
         Map<String, Object> startEndMap = getStartDateTimeAndEndDateTimeOfYearMonth(date);
         LocalDateTime aggregationStart = (LocalDateTime) startEndMap.get("startDateTime");
         StreamingTotal streamingTotal = streamingTotalRepository.findByAggregationStartTime(aggregationStart)
                 .orElseThrow(() -> new IllegalArgumentException("No streaming total found for input date"));
 
+        // businessMember 가 소유한 작품들의 유, 무료 작품 별 총 조회 수, 정산 금액을 계산하여 StreamingStatistics 객체 생성
         return businessMember -> {
             int chargeFreeSum = businessMember.getArtworks().stream()
                     .filter(Artwork::isChargeFree)
@@ -374,11 +424,13 @@ public class SettlementJobConfiguration {
     }
 
     private ItemProcessor<? super SaleMember,? extends List<StreamingStatisticsDetail>> actualSettlementAmountBySaleMemberArtworkItemProcessor(String date) {
+        // StreamingTotal 찾아오기
         Map<String, Object> startEndMap = getStartDateTimeAndEndDateTimeOfYearMonth(date);
         LocalDateTime aggregationStart = (LocalDateTime) startEndMap.get("startDateTime");
         StreamingTotal streamingTotal = streamingTotalRepository.findByAggregationStartTime(aggregationStart)
                 .orElseThrow(() -> new IllegalArgumentException("No streaming total found for input date!"));
 
+        // saleMember 가 소유한 각 유료 작품 당 조회 수, 정산 금액 계산 후 StreamingStatisticsDetail 객체 생성
         return saleMember -> {
             StreamingStatistics streamingStatistics = streamingStatisticsRepository.findByOwnerEmail(saleMember.getEmail())
                     .orElseThrow(() -> new IllegalArgumentException("No streaming statistics found for owner's email!"));
@@ -413,11 +465,13 @@ public class SettlementJobConfiguration {
     }
 
     private ItemProcessor<? super BusinessMember,? extends List<StreamingStatisticsDetail>> actualSettlementAmountByBusinessMemberArtworkItemProcessor(String date) {
+        // StreamingTotal 찾아오기
         Map<String, Object> startEndMap = getStartDateTimeAndEndDateTimeOfYearMonth(date);
         LocalDateTime aggregationStart = (LocalDateTime) startEndMap.get("startDateTime");
         StreamingTotal streamingTotal = streamingTotalRepository.findByAggregationStartTime(aggregationStart)
                 .orElseThrow(() -> new IllegalArgumentException("No streaming total found for input date!"));
 
+        // businessMember 가 소유한 각 유료 작품 당 조회 수, 정산 금액 계산 후 StreamingStatisticsDetail 객체 생성
         return businessMember -> {
             StreamingStatistics streamingStatistics = streamingStatisticsRepository.findByOwnerEmail(businessMember.getEmail())
                     .orElseThrow(() -> new IllegalArgumentException("No streaming statistics found for owner's email!"));
